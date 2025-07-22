@@ -20,6 +20,7 @@ model Organization {
   parent      Organization?    @relation("OrganizationHierarchy", fields: [parentId], references: [id])
   children    Organization[]   @relation("OrganizationHierarchy")
   users       User[]
+  talentPool  TalentPool[]     @relation("TalentPoolProperty")
 
   @@map("organizations")
 }
@@ -47,6 +48,7 @@ model User {
   receivedMessages         Message[]                 @relation("MessageReceiver")
   sentMessages             Message[]                 @relation("MessageSender")
   createdScheduleEntries   ScheduleEntry[]           @relation("ScheduleCreator")
+  onboardingReviews        OnboardingSession[]       @relation("OnboardingReviewer")
   organization             Organization              @relation(fields: [organizationId], references: [id])
 
   @@map("users")
@@ -100,6 +102,25 @@ model Document {
   @@map("documents")
 }
 
+model TalentPool {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName       String
+  lastName        String
+  email           String   @unique
+  phone           String?
+  department      String
+  position        String
+  experience      String?
+  applicationData Json
+  propertyId      String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  property        Organization @relation("TalentPoolProperty", fields: [propertyId], references: [id])
+
+  @@map("talent_pool")
+}
+
 model ScheduleEntry {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   employeeId     String       @map("employee_id") @db.Uuid
@@ -141,8 +162,12 @@ model OnboardingSession {
   lastName           String?          @map("last_name")
   organizationId     String?          @map("organization_id") @db.Uuid
   organizationName   String?          @map("organization_name")
+  reviewedBy         String?          @map("reviewed_by") @db.Uuid
+  reviewNotes        String?          @map("review_notes")
+  editRequests       Json?            @map("edit_requests")
   jobApplication     JobApplication?  @relation(fields: [applicationId], references: [id])
   employee           Employee?        @relation(fields: [employeeId], references: [id])
+  reviewer           User?            @relation("OnboardingReviewer", fields: [reviewedBy], references: [id])
 
   @@map("onboarding_sessions")
 }
@@ -309,6 +334,8 @@ enum OnboardingStatus {
   expired
   cancelled
   manager_approved
+  hr_review_required
+  hr_edit_requested
   approved
   rejected
 }

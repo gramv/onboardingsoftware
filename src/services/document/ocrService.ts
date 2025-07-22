@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { createWorker, PSM, OEM } from 'tesseract.js';
-import { DocumentRepository } from '@/repositories/document.repository';
-import { Document, DocumentType } from '@prisma/client';
-import { config } from '@/config/environment';
+import { Document, DocumentType, Prisma } from '@prisma/client';
 import sharp from 'sharp';
+import { groqService } from '../ai/groqService';
+import { PrismaClient } from '@prisma/client';
 import { 
   extractionPatterns, 
   getPatternsForLanguage, 
@@ -27,16 +27,25 @@ export interface OCRResult {
   fieldConfidences: Record<string, number>;
   rawText: string;
   processingStatus: 'pending' | 'completed' | 'failed';
+  enhancedProcessing?: boolean;
+}
+
+export interface OCRProcessingResult {
+  extractedData: Record<string, any>;
+  confidence: number;
+  fieldConfidences: Record<string, number>;
+  rawText: string;
+  processingStatus: 'pending' | 'completed' | 'failed';
   errorMessage?: string;
   enhancedProcessing?: boolean;
   language?: 'en' | 'es';
 }
 
 export class OCRService {
-  private documentRepository: DocumentRepository;
+  private prisma: PrismaClient;
 
   constructor() {
-    this.documentRepository = new DocumentRepository();
+    this.prisma = new PrismaClient();
   }
 
   /**
@@ -45,62 +54,55 @@ export class OCRService {
    * @param language Optional language preference (auto-detected if not provided)
    * @returns OCR processing result
    */
-  async processDocument(documentId: string, language?: 'en' | 'es'): Promise<OCRResult> {
-    // Check if OCR is enabled
-    if (!config.ocr.enabled) {
-      throw new Error('OCR processing is disabled');
-    }
-
-    // Get the document
-    const document = await this.documentRepository.findById(documentId);
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    // Check if document type supports OCR
-    if (!this.isOCRSupportedDocumentType(document.documentType)) {
-      throw new Error(`OCR is not supported for document type: ${document.documentType}`);
-    }
-
-    // Check if file exists
-    if (!document.filePath || !fs.existsSync(document.filePath)) {
-      throw new Error('Document file not found');
-    }
-
+  async processDocument(
+    documentPath: string,
+    documentType: DocumentType
+  ): Promise<OCRProcessingResult> {
     try {
-      // Preprocess the image for better OCR results
-      const preprocessedImagePath = await this.preprocessImage(document.filePath);
+      console.log(`Processing document: ${documentPath}, type: ${documentType}`);
       
-      // Perform initial OCR to detect language if not specified
-      let detectedLanguage = language || 'en';
-      if (!language) {
-        const initialResult = await this.performInitialOCR(preprocessedImagePath);
-        detectedLanguage = detectDocumentLanguage(initialResult.text);
+      // Convert image to base64 for Groq
+      const imageBuffer = await fs.promises.readFile(documentPath);
+      const imageBase64 = imageBuffer.toString('base64');
+      
+      // Use Groq for OCR processing
+      const groqResult = await groqService.processDocumentOCR(imageBase64, documentType as any);
+      
+      // Fallback to Tesseract if Groq fails or has low confidence
+      let finalResult = groqResult;
+      if (groqResult.confidence < 0.5) {
+        console.log('Groq confidence low, falling back to Tesseract');
+        const processedImagePath = await this.preprocessImage(documentPath);
+        const tesseractResult = await this.performOCR(processedImagePath, documentType);
+        
+        if (processedImagePath !== documentPath) {
+          await fs.promises.unlink(processedImagePath);
+        }
+        
+        finalResult = {
+          ...tesseractResult,
+          confidence: tesseractResult.confidence,
+          extractedText: tesseractResult.rawText
+        };
       }
       
-      // Perform OCR on the preprocessed image with detected/specified language
-      const ocrResult = await this.performOCR(preprocessedImagePath, document.documentType, detectedLanguage);
-      
-      // Clean up temporary file
-      this.cleanupFile(preprocessedImagePath);
-      
-      // Update document with OCR data
-      await this.documentRepository.updateOCRData(documentId, ocrResult);
-      
-      return ocrResult;
+      return {
+        extractedData: finalResult,
+        confidence: finalResult.confidence,
+        fieldConfidences: {},
+        rawText: finalResult.extractedText,
+        processingStatus: 'completed'
+      };
     } catch (error) {
-      // Update document with failed OCR status
-      const failedResult: OCRResult = {
+      console.error('OCR processing failed:', error);
+      return {
         extractedData: {},
         confidence: 0,
         fieldConfidences: {},
         rawText: '',
         processingStatus: 'failed',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error during OCR processing'
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       };
-      
-      await this.documentRepository.updateOCRData(documentId, failedResult);
-      throw error;
     }
   }
 
@@ -168,7 +170,7 @@ export class OCRService {
    * @param language Language preference
    * @returns OCR result
    */
-  private async performOCR(imagePath: string, documentType: DocumentType, language: 'en' | 'es' = 'en'): Promise<OCRResult> {
+  private async performOCR(imagePath: string, documentType: DocumentType, language: 'en' | 'es' = 'en'): Promise<OCRProcessingResult> {
     // Create Tesseract worker
     const worker = await createWorker();
     
@@ -198,7 +200,7 @@ export class OCRService {
       );
       
       // Create OCR result
-      const result: OCRResult = {
+      const result: OCRProcessingResult = {
         extractedData,
         confidence: data.confidence,
         fieldConfidences,
@@ -316,7 +318,14 @@ export class OCRService {
    * @returns List of documents pending OCR processing
    */
   async getPendingOCRDocuments(): Promise<Document[]> {
-    return this.documentRepository.findPendingOCR();
+    return this.prisma.document.findMany({
+      where: {
+        OR: [
+          { ocrData: { equals: Prisma.DbNull } },
+          { ocrData: { equals: Prisma.JsonNull } }
+        ]
+      }
+    });
   }
 
   /**
@@ -325,8 +334,11 @@ export class OCRService {
    * @param ocrData OCR data
    * @returns Updated document
    */
-  async updateOCRData(documentId: string, ocrData: OCRResult): Promise<Document> {
-    return this.documentRepository.updateOCRData(documentId, ocrData);
+  async updateOCRData(documentId: string, ocrData: OCRProcessingResult): Promise<Document> {
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { ocrData: ocrData as any }
+    });
   }
 
   /**
@@ -337,7 +349,9 @@ export class OCRService {
    */
   async correctOCRData(documentId: string, correctedData: Record<string, any>): Promise<Document> {
     // Get existing OCR data
-    const document = await this.documentRepository.findById(documentId);
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId }
+    });
     if (!document) {
       throw new Error('Document not found');
     }
@@ -361,7 +375,10 @@ export class OCRService {
     };
     
     // Update document
-    return this.documentRepository.updateOCRData(documentId, updatedOCRData);
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { ocrData: updatedOCRData as any }
+    });
   }
 
   /**
@@ -370,9 +387,11 @@ export class OCRService {
    * @param language Language preference
    * @returns OCR result
    */
-  async retryWithEnhancement(documentId: string, language: 'en' | 'es' = 'en'): Promise<OCRResult> {
+  async retryWithEnhancement(documentId: string, language: 'en' | 'es' = 'en'): Promise<OCRProcessingResult> {
     // Get the document
-    const document = await this.documentRepository.findById(documentId);
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId }
+    });
     if (!document) {
       throw new Error('Document not found');
     }
@@ -428,7 +447,7 @@ export class OCRService {
         );
         
         // Create OCR result
-        const result: OCRResult = {
+        const result: OCRProcessingResult = {
           extractedData,
           confidence: data.confidence,
           fieldConfidences,
@@ -439,7 +458,10 @@ export class OCRService {
         };
         
         // Update document
-        await this.documentRepository.updateOCRData(documentId, result);
+        await this.prisma.document.update({
+          where: { id: documentId },
+          data: { ocrData: result as any }
+        });
         
         // Clean up
         this.cleanupFile(enhancedImagePath);
@@ -450,7 +472,7 @@ export class OCRService {
       }
     } catch (error) {
       // Update document with failed OCR status
-      const failedResult: OCRResult = {
+      const failedResult: OCRProcessingResult = {
         extractedData: {},
         confidence: 0,
         fieldConfidences: {},
@@ -459,7 +481,10 @@ export class OCRService {
         errorMessage: error instanceof Error ? error.message : 'Unknown error during enhanced OCR processing'
       };
       
-      await this.documentRepository.updateOCRData(documentId, failedResult);
+      await this.prisma.document.update({
+        where: { id: documentId },
+        data: { ocrData: failedResult as any }
+      });
       throw error;
     }
   }
@@ -596,16 +621,16 @@ export class OCRService {
    * @param language Language preference
    * @returns Array of OCR results
    */
-  async batchProcessDocuments(documentIds: string[], language: 'en' | 'es' = 'en'): Promise<OCRResult[]> {
-    const results: OCRResult[] = [];
+  async batchProcessDocuments(documentIds: string[], language: 'en' | 'es' = 'en'): Promise<OCRProcessingResult[]> {
+    const results: OCRProcessingResult[] = [];
     
     for (const documentId of documentIds) {
       try {
-        const result = await this.processDocument(documentId, language);
+        const result = await this.processDocument(documentId, 'drivers_license');
         results.push(result);
       } catch (error) {
         // Continue processing other documents even if one fails
-        const failedResult: OCRResult = {
+        const failedResult: OCRProcessingResult = {
           extractedData: {},
           confidence: 0,
           fieldConfidences: {},
@@ -625,23 +650,24 @@ export class OCRService {
    * @param documentId Document ID
    * @returns Updated document
    */
-  async enableManualEntry(documentId: string): Promise<Document> {
-    const document = await this.documentRepository.findById(documentId);
+  async enableManualEntry(documentId: string, manualData: Record<string, any>): Promise<OCRProcessingResult> {
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId }
+    });
     if (!document) {
       throw new Error('Document not found');
     }
 
-    const manualEntryData = {
-      extractedData: {},
-      confidence: 0,
+    const manualEntryData: OCRProcessingResult = {
+      extractedData: manualData,
+      confidence: 100,
       fieldConfidences: {},
-      rawText: '',
-      processingStatus: 'pending' as const,
-      manualEntryEnabled: true,
-      requiresManualReview: true
+      rawText: 'Manual entry',
+      processingStatus: 'completed',
+      enhancedProcessing: false
     };
-
-    return this.documentRepository.updateOCRData(documentId, manualEntryData);
+    
+    return manualEntryData;
   }
 
   /**
@@ -697,18 +723,18 @@ export class OCRService {
    * @param documentIds Array of document IDs
    * @returns Batch processing results
    */
-  async processBatch(documentIds: string[]): Promise<Record<string, OCRResult & { requiresManualReview?: boolean }>> {
-    const results: Record<string, OCRResult & { requiresManualReview?: boolean }> = {};
+  async processBatch(documentPaths: string[], documentType: DocumentType): Promise<Record<string, OCRProcessingResult & { requiresManualReview?: boolean }>> {
+    const results: Record<string, OCRProcessingResult & { requiresManualReview?: boolean }> = {};
     
-    for (const documentId of documentIds) {
+    for (const documentPath of documentPaths) {
       try {
-        const result = await this.processDocument(documentId);
-        results[documentId] = {
+        const result = await this.processDocument(documentPath, documentType);
+        results[documentPath] = {
           ...result,
           requiresManualReview: result.confidence < 70 || Object.values(result.fieldConfidences).some(conf => conf < 60)
         };
       } catch (error) {
-        results[documentId] = {
+        results[documentPath] = {
           extractedData: {},
           confidence: 0,
           fieldConfidences: {},

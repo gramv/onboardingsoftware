@@ -171,4 +171,38 @@ This secure link expires in 7 days and is valid for one use only. If you have an
       return false;
     }
   }
+
+  async sendRejectionEmail(
+    email: string,
+    candidateName: string,
+    organizationName: string,
+    department: string
+  ): Promise<void> {
+    const subject = `Thank you for your interest in ${organizationName}`;
+    
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Thank you for your application</h2>
+        
+        <p>Dear ${candidateName},</p>
+        
+        <p>Thank you for your interest in the ${department} position at ${organizationName}. 
+        We appreciate the time you took to apply and learn about our organization.</p>
+        
+        <p>After careful consideration, we have decided to move forward with another candidate  
+        for this particular role. This decision was not easy, as we received many qualified applications.</p>
+        
+        <p>We will keep your information on file and will reach out if a suitable opportunity 
+        becomes available that matches your background and interests.</p>
+        
+        <p>We wish you the best in your job search and thank you again for considering ${organizationName}.</p>
+        
+        <p>Best regards,<br>
+        ${organizationName} Hiring Team</p>
+      </div>
+    `;
+
+    await this.sendEmail(email, subject, htmlContent, htmlContent);
+    console.log(`📧 Rejection email sent to ${email}`);
+  }
 }

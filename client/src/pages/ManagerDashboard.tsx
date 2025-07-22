@@ -15,6 +15,8 @@ import { CommunicationHub } from '../components/manager/CommunicationHub';
 import { JobManagement } from '../components/manager/JobManagement';
 import { OnboardingReviewInterface } from '../components/manager/OnboardingReviewInterface';
 import WalkInOnboardingManager from '../components/manager/WalkInOnboardingManager';
+import { PropertyQRManager } from '../components/manager/PropertyQRManager';
+import { JobApplicationReview } from '../components/manager/JobApplicationReview';
 
 type DashboardTab = 
   | 'overview' 
@@ -26,7 +28,9 @@ type DashboardTab =
   | 'announcements' 
   | 'coverage'
   | 'messages'
-  | 'jobs';
+  | 'jobs'
+  | 'qr-codes'
+  | 'applications';
 
 export const ManagerDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -67,6 +71,8 @@ export const ManagerDashboard: React.FC = () => {
     { id: 'coverage', label: 'Shift Coverage', icon: 'Clock' },
     { id: 'messages', label: 'Messages', icon: 'MessageSquare' },
     { id: 'jobs', label: 'Job Postings', icon: 'FileText' },
+    { id: 'qr-codes', label: 'QR Codes', icon: 'QrCode' },
+    { id: 'applications', label: 'Applications', icon: 'Users' },
   ];
 
   const renderTabContent = () => {
@@ -91,6 +97,10 @@ export const ManagerDashboard: React.FC = () => {
         return <CommunicationHub propertyName={propertyData.propertyName} />;
       case 'jobs':
         return <JobManagement />;
+      case 'qr-codes':
+        return <PropertyQRManager />;
+      case 'applications':
+        return <JobApplicationReview />;
       default:
         return null;
     }

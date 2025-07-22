@@ -1,8 +1,8 @@
 import { PrismaClient, UserRole, ApplicationStatus } from '@prisma/client';
 import { z } from 'zod';
-import { SimpleEmailService } from '@/services/email/simpleEmailService';
-import { OnboardingService } from '@/services/onboarding/onboardingService';
-import { hashPassword } from '@/utils/auth/password';
+import { SimpleEmailService } from '../email/simpleEmailService';
+import { OnboardingService } from '../onboarding/onboardingService';
+import { hashPassword } from '../../utils/auth/password';
 
 const prisma = new PrismaClient();
 const simpleEmailService = new SimpleEmailService();
@@ -318,10 +318,11 @@ export class JobService {
   }
 
   // Get applications for a job posting
-  async getJobApplications(
+  async getJobApplicationsByDepartment(
     filters: {
       jobPostingId?: string;
       organizationId?: string;
+      department?: string;
       status?: ApplicationStatus;
       search?: string;
     } = {},
@@ -528,9 +529,30 @@ export class JobService {
         }
       }
     } else if (data.status === 'rejected') {
-      // Send rejection email (simple approach)
+      // Send rejection email and store in talent pool
       console.log(`📧 Sending rejection notification to ${updatedApplication.email}`);
-      // For now, we'll focus on the approval flow and handle rejection emails later
+      
+      try {
+        await simpleEmailService.sendRejectionEmail(
+          updatedApplication.email,
+          `${updatedApplication.firstName} ${updatedApplication.lastName}`,
+          updatedApplication.jobPosting.organization.name,
+          updatedApplication.jobPosting.department
+        );
+
+        await this.addToTalentPool(updatedApplication);
+        
+        // Send rejection emails to other candidates in same department
+        await this.sendDepartmentRejectionEmails(
+          updatedApplication.jobPosting.id,
+          updatedApplication.jobPosting.department,
+          updatedApplication.id
+        );
+        
+        console.log(`📧 Rejection emails sent for ${updatedApplication.jobPosting.department} department`);
+      } catch (error) {
+        console.error('🚨 ERROR: Failed to send rejection emails:', error);
+      }
     }
 
     return updatedApplication;
@@ -626,4 +648,241 @@ export class JobService {
 
     return employee;
   }
-} 
+
+  async generatePropertyQRCode(organizationId: string, context: JobServiceContext): Promise<string> {
+    if (context.role !== 'hr_admin' && context.role !== 'manager') {
+      throw new Error('Insufficient permissions to generate QR codes');
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrUrl = `${baseUrl}/jobs?org=${organizationId}`;
+    
+    return qrUrl;
+  }
+
+  async getJobApplicationsByDepartment(
+    filters: {
+      jobPostingId?: string;
+      organizationId?: string;
+      department?: string;
+      status?: ApplicationStatus;
+      search?: string;
+    } = {},
+    context: JobServiceContext
+  ) {
+    const where: any = {};
+
+    if (context.role === 'manager') {
+      if (where.jobPosting) {
+        where.jobPosting.organizationId = context.organizationId;
+      } else {
+        where.jobPosting = {
+          organizationId: context.organizationId,
+        };
+      }
+    } else if (context.role !== 'hr_admin') {
+      throw new Error('Insufficient permissions to view applications');
+    }
+
+    if (filters.jobPostingId) {
+      where.jobPostingId = filters.jobPostingId;
+    }
+
+    if (filters.organizationId && context.role === 'hr_admin') {
+      if (where.jobPosting) {
+        where.jobPosting.organizationId = filters.organizationId;
+      } else {
+        where.jobPosting = {
+          organizationId: filters.organizationId,
+        };
+      }
+    }
+
+    if (filters.department) {
+      if (where.jobPosting) {
+        where.jobPosting.department = filters.department;
+      } else {
+        where.jobPosting = {
+          department: filters.department,
+        };
+      }
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { firstName: { contains: filters.search, mode: 'insensitive' } },
+        { lastName: { contains: filters.search, mode: 'insensitive' } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const applications = await prisma.jobApplication.findMany({
+      where,
+      include: {
+        jobPosting: {
+          select: {
+            id: true,
+            title: true,
+            department: true,
+            position: true,
+            organization: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        reviewer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: {
+        appliedAt: 'desc',
+      },
+    });
+
+    return applications;
+  }
+
+  private async addToTalentPool(application: any) {
+    await prisma.talentPool.create({
+      data: {
+        firstName: application.firstName,
+        lastName: application.lastName,
+        email: application.email,
+        phone: application.phone,
+        address: application.address,
+        experience: application.experience,
+        education: application.education,
+        interestedDepartments: [application.jobPosting.department],
+        organizationId: application.jobPosting.organizationId,
+        source: 'job_application',
+        status: 'available',
+        lastContactDate: new Date(),
+      }
+    });
+  }
+
+  private async sendDepartmentRejectionEmails(jobPostingId: string, department: string, excludeApplicationId: string) {
+    const otherApplications = await prisma.jobApplication.findMany({
+      where: {
+        jobPostingId,
+        status: 'pending',
+        id: { not: excludeApplicationId }
+      },
+      include: {
+        jobPosting: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
+
+    for (const app of otherApplications) {
+      try {
+        await simpleEmailService.sendRejectionEmail(
+          app.email,
+          `${app.firstName} ${app.lastName}`,
+          app.jobPosting.organization.name,
+          department
+        );
+
+        await prisma.jobApplication.update({
+          where: { id: app.id },
+          data: { status: 'rejected' }
+        });
+
+        await this.addToTalentPool(app);
+      } catch (error) {
+        console.error(`Error processing rejection for ${app.email}:`, error);
+      }
+    }
+  }
+
+  async generatePropertyQRCode(organizationId: string, context: JobServiceContext): Promise<string> {
+    if (context.role !== 'hr_admin' && context.role !== 'manager') {
+      throw new Error('Insufficient permissions to generate QR codes');
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrUrl = `${baseUrl}/jobs?org=${organizationId}`;
+    
+    return qrUrl;
+  }
+
+  private async addToTalentPool(application: any) {
+    const talentPoolData = {
+      firstName: application.firstName,
+      lastName: application.lastName,
+      email: application.email,
+      phone: application.phone || null,
+      address: application.address || null,
+      experience: application.experience || null,
+      education: application.education || null,
+      interestedDepartments: [application.jobPosting.department],
+      organizationId: application.jobPosting.organizationId,
+      source: 'job_application',
+      status: 'available',
+      lastContactDate: new Date(),
+    };
+
+    console.log('Adding to talent pool:', talentPoolData);
+  }
+
+  private async sendDepartmentRejectionEmails(jobPostingId: string, department: string, excludeApplicationId: string) {
+    const otherApplications = await prisma.jobApplication.findMany({
+      where: {
+        jobPostingId,
+        status: 'pending',
+        id: { not: excludeApplicationId }
+      },
+      include: {
+        jobPosting: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
+
+    for (const app of otherApplications) {
+      try {
+        await simpleEmailService.sendRejectionEmail(
+          app.email,
+          `${app.firstName} ${app.lastName}`,
+          app.jobPosting.organization.name,
+          department
+        );
+
+        await prisma.jobApplication.update({
+          where: { id: app.id },
+          data: { status: 'rejected' }
+        });
+
+        await this.addToTalentPool(app);
+      } catch (error) {
+        console.error(`Error processing rejection for ${app.email}:`, error);
+      }
+    }
+  }
+
+  async getJobApplications(
+    filters: {
+      jobPostingId?: string;
+      organizationId?: string;
+      status?: ApplicationStatus;
+      search?: string;
+    } = {},
+    context: JobServiceContext
+  ) {
+    return this.getJobApplicationsByDepartment(filters, context);
+  }
+}        

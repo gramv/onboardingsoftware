@@ -267,7 +267,7 @@ router.get('/manage/all', authenticate, requireRole(['hr_admin', 'manager']), as
  */
 router.get('/applications', authenticate, requireRole(['hr_admin', 'manager']), async (req, res) => {
   try {
-    const { jobPostingId, status, search } = req.query;
+    const { jobPostingId, status, search, department } = req.query;
     const context = createServiceContext(req);
     
     console.log('🔍 Applications endpoint called by user:', context.userId, 'role:', context.role, 'org:', context.organizationId);
@@ -276,9 +276,10 @@ router.get('/applications', authenticate, requireRole(['hr_admin', 'manager']), 
       jobPostingId: jobPostingId as string,
       status: status as any,
       search: search as string,
+      department: department as string,
     };
 
-    const applications = await jobService.getJobApplications(filters, context);
+    const applications = await jobService.getJobApplicationsByDepartment(filters, context);
 
     console.log('✅ Applications endpoint returning:', applications.length, 'applications');
     return res.status(200).json({
@@ -464,4 +465,4 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-export default router; 
+export default router;  

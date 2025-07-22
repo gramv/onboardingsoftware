@@ -101,11 +101,11 @@ export const AccessCodeEntry: React.FC<AccessCodeEntryProps> = ({
       
       const result = await onboardingService.validateToken(code);
       
-      if (result.success && result.session && result.employee) {
+      if (result.success && result.data?.session && result.data?.employee) {
         // Store session data for later use
-        sessionStorage.setItem('onboardingSession', JSON.stringify(result.session));
+        sessionStorage.setItem('onboardingSession', JSON.stringify(result.data.session));
         
-        onCodeValidated(true, result.employee);
+        onCodeValidated(true, result.data.employee);
       } else {
         setError(t.invalid);
         setShake(true);

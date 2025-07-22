@@ -17,17 +17,17 @@ async function setupOnboardingDemo() {
       create: {
         name: 'Motel Chain Corporate',
         type: 'corporate',
-        address: {
+        address: JSON.stringify({
           street: '123 Corporate Blvd',
           city: 'Business City',
           state: 'CA',
           zipCode: '90210',
           country: 'USA'
-        },
-        settings: {
+        }),
+        settings: JSON.stringify({
           timezone: 'America/Los_Angeles',
           currency: 'USD'
-        }
+        })
       }
     });
 
@@ -38,17 +38,17 @@ async function setupOnboardingDemo() {
         name: 'Beachside Motel',
         type: 'motel',
         parentId: corporateOrg.id,
-        address: {
+        address: JSON.stringify({
           street: '123 Ocean Drive',
           city: 'Seaside',
           state: 'CA',
           zipCode: '90213',
           country: 'USA'
-        },
-        settings: {
+        }),
+        settings: JSON.stringify({
           timezone: 'America/Los_Angeles',
           maxEmployees: 20
-        }
+        })
       }
     });
 
@@ -118,18 +118,18 @@ async function setupOnboardingDemo() {
         department: 'Pool Services',
         hourlyRate: 17.50,
         employmentStatus: 'active',
-        emergencyContact: {
+        emergencyContact: JSON.stringify({
           name: 'Jennifer Lee',
           relationship: 'Mother',
           phone: '+1-555-0305'
-        },
-        address: {
+        }),
+        address: JSON.stringify({
           street: '567 Beach Rd',
           city: 'Seaside',
           state: 'CA',
           zipCode: '90213',
           country: 'USA'
-        }
+        })
       }
     });
 
@@ -139,7 +139,7 @@ async function setupOnboardingDemo() {
         id: employee.id
       },
       update: {
-        formData: {
+        formData: JSON.stringify({
           personalInfo: {
             firstName: 'Michael',
             lastName: 'Lee',
@@ -172,15 +172,15 @@ async function setupOnboardingDemo() {
             expirationDate: "2028-05-15",
             manuallyEntered: true
           }
-        }
+        })
       },
       create: {
         id: employee.id,
         employeeId: employee.id,
-        accessCode: 'ABC123',
+        token: 'ABC123',
         languagePreference: 'en',
         currentStep: 'document-upload',
-        formData: {
+        formData: JSON.stringify({
           personalInfo: {
             firstName: 'Michael',
             lastName: 'Lee',
@@ -213,9 +213,9 @@ async function setupOnboardingDemo() {
             expirationDate: "2028-05-15",
             manuallyEntered: true
           }
-        },
+        }),
         status: 'in_progress' as OnboardingStatus,
-        expiresAt: new Date('2024-07-15'),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
         createdAt: new Date('2024-06-15'),
         updatedAt: new Date('2024-06-15')
       }

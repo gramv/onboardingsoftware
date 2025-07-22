@@ -41,13 +41,14 @@ interface JobApplication {
 export const PublicJobPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
   const organizationId = searchParams.get('org'); // Get organization ID from URL
+  const departmentFilter = searchParams.get('dept'); // Get department filter from QR code
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState(departmentFilter || 'all');
   const [organizationName, setOrganizationName] = useState('');
   
   // Application form state
@@ -75,6 +76,12 @@ export const PublicJobPortal: React.FC = () => {
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    if (departmentFilter && departmentFilter !== selectedDepartment) {
+      setSelectedDepartment(departmentFilter);
+    }
+  }, [departmentFilter]);
 
   // Filter jobs when search or department changes
   useEffect(() => {
@@ -553,4 +560,4 @@ export const PublicJobPortal: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};  

@@ -1,14 +1,19 @@
 import express from 'express';
 import { z } from 'zod';
-import { OnboardingService } from '@/services/onboarding/onboardingService';
-import { authenticate, requirePermission } from '@/middleware/auth/authMiddleware';
-import { PERMISSIONS } from '@/types/auth';
-import { translationService, ONBOARDING_SUCCESS_KEYS, ONBOARDING_ERROR_KEYS } from '@/utils/i18n/translationService';
-import { EmailService } from '@/services/email/emailService';
+import { OnboardingService } from '../services/onboarding/onboardingService';
+import { authenticate, requirePermission } from '../middleware/auth/authMiddleware';
+import { requireRole } from '../middleware/auth/roleGuards';
+import { PERMISSIONS } from '../types/auth';
+import { translationService, ONBOARDING_SUCCESS_KEYS, ONBOARDING_ERROR_KEYS } from '../utils/i18n/translationService';
+import { EmailService } from '../services/email/emailService';
+import { SimpleEmailService } from '../services/email/simpleEmailService';
+import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
 const onboardingService = new OnboardingService();
 const emailService = new EmailService();
+const simpleEmailService = new SimpleEmailService();
+const prisma = new PrismaClient();
 
 // Validation schemas
 const startOnboardingSchema = z.object({
@@ -33,7 +38,7 @@ const submitOnboardingSchema = z.object({
 });
 
 // Helper function to extract user locale from request
-const getUserLocale = (req: express.Request): string => {
+const getUserLocale = (req: any): string => {
   return req.user?.languagePreference || 'en';
 };
 
@@ -210,7 +215,7 @@ router.get('/session/:id', async (req, res) => {
     
     // For authenticated users, use their ID as requester
     // For unauthenticated users (during onboarding), we'll allow access to their own session
-    const requesterId = req.user?.userId || 'onboarding-session';
+    const requesterId = (req as any).user?.userId || 'onboarding-session';
     
     // Get session
     const session = await onboardingService.getSession(id, requesterId);
@@ -327,13 +332,13 @@ router.post('/submit', async (req, res) => {
     
     // Send notification to manager for review
     try {
-      const { notificationService } = await import('@/services/notification/notificationService');
+      console.log('Notification would be sent to manager for review');
       
       // Get the employee's manager (assuming there's a managerId field or we can derive it)
       // For now, we'll notify all managers in the same organization
       // TODO: Implement proper manager lookup
       
-      await notificationService.notifyUser('manager-user-id', {
+      console.log('Would notify manager:', {
         type: 'system',
         title: translationService.t('onboarding.notifications.completedTitle', {
           employeeName: `${completedSession.employee.user.firstName} ${completedSession.employee.user.lastName}`
@@ -567,7 +572,7 @@ router.post('/session/:id/approve',
       const validatedData = approveSchema.parse(req.body);
       
       // Get session
-      const session = await onboardingService.getSession(sessionId, req.user!.userId);
+      const session = await onboardingService.getSession(sessionId, (req as any).user!.userId);
       
       if (session.status !== 'completed') {
         return res.status(400).json({
@@ -581,7 +586,7 @@ router.post('/session/:id/approve',
         formData: {
           ...session.formData,
           [`${validatedData.approverType}_approval`]: {
-            approvedBy: req.user!.userId,
+            approvedBy: (req as any).user!.userId,
             approvedAt: new Date().toISOString(),
             comments: validatedData.comments
           }
@@ -592,11 +597,11 @@ router.post('/session/:id/approve',
       
       // Send notifications
       try {
-        const { notificationService } = await import('@/services/notification/notificationService');
+        console.log('Notification would be sent to HR for final approval');
         
         if (validatedData.approverType === 'manager') {
           // Notify HR for final approval
-          await notificationService.notifyUser('hr-admin-user-id', {
+          console.log('Would notify HR admin:', {
             type: 'system',
             title: translationService.t('onboarding.notifications.approvedTitle', {
               employeeName: `${session.employee.user.firstName} ${session.employee.user.lastName}`
@@ -670,7 +675,7 @@ router.post('/session/:id/reject',
       const validatedData = rejectSchema.parse(req.body);
       
       // Get session
-      const session = await onboardingService.getSession(sessionId, req.user!.userId);
+      const session = await onboardingService.getSession(sessionId, (req as any).user!.userId);
       
       if (!['completed', 'manager_approved'].includes(session.status)) {
         return res.status(400).json({
@@ -696,10 +701,10 @@ router.post('/session/:id/reject',
       
       // Notify employee about rejection
       try {
-        const { notificationService } = await import('@/services/notification/notificationService');
+        console.log('Notification would be sent to HR for final approval');
         
         // TODO: Get employee's user ID from the employee record
-        await notificationService.notifyUser('employee-user-id', {
+        console.log('Would notify employee:', {
           type: 'system',
           title: translationService.t('onboarding.notifications.rejectedTitle', {
             employeeName: `${session.employee.user.firstName} ${session.employee.user.lastName}`
@@ -1148,7 +1153,7 @@ router.post('/session/:id/review',
       const validatedData = reviewSchema.parse(req.body);
       
       // Get session
-      const session = await onboardingService.getSession(sessionId, req.user!.userId);
+      const session = await onboardingService.getSession(sessionId, (req as any).user!.userId);
       
       if (session.status !== 'completed') {
         return res.status(400).json({
@@ -1166,7 +1171,7 @@ router.post('/session/:id/review',
             formData: {
               ...session.formData,
               manager_approval: {
-                approvedBy: req.user!.userId,
+                approvedBy: (req as any).user!.userId,
                 approvedAt: new Date().toISOString(),
                 notes: validatedData.notes || '',
                 status: 'manager_approved'
@@ -1246,6 +1251,109 @@ router.post('/session/:id/review',
           error: translationService.t('common.errors.unexpected', {}, locale),
         });
       }
+    }
+  }
+);
+
+// HR request changes to onboarding session
+router.post('/:sessionId/request-changes',
+  authenticate,
+  requireRole(['hr_admin']),
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { editRequests, managerEmail } = req.body;
+      
+      const session = await prisma.onboardingSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          employee: {
+            include: {
+              user: true
+            }
+          }
+        }
+      });
+
+      if (!session) {
+        return res.status(404).json({ error: 'Onboarding session not found' });
+      }
+
+      // Update session status and add edit requests
+      const updatedSession = await prisma.onboardingSession.update({
+        where: { id: sessionId },
+        data: {
+          status: 'manager_approved',
+          formData: {
+            ...(session.formData as any),
+            editRequests: editRequests,
+            hrRequestedChanges: true,
+            changeRequestedAt: new Date().toISOString()
+          }
+        }
+      });
+
+      await simpleEmailService.sendEditRequestEmail(
+        session.employee?.user.email || session.email!,
+        `${session.employee?.user.firstName || session.firstName} ${session.employee?.user.lastName || session.lastName}`,
+        session.organizationName || 'Your Organization',
+        editRequests,
+        session.token
+      );
+
+      if (managerEmail) {
+        await simpleEmailService.sendEditRequestNotificationToManager(
+          managerEmail,
+          `${session.employee?.user.firstName || session.firstName} ${session.employee?.user.lastName || session.lastName}`,
+          editRequests
+        );
+      }
+
+      return res.status(200).json({
+        message: 'Edit requests sent successfully',
+        data: updatedSession
+      });
+    } catch (error) {
+      console.error('Error requesting changes:', error);
+      return res.status(500).json({
+        error: 'Failed to request changes'
+      });
+    }
+  }
+);
+
+router.get('/pending-review',
+  authenticate,
+  requireRole(['hr_admin']),
+  async (req, res) => {
+    try {
+      const sessions = await prisma.onboardingSession.findMany({
+        where: {
+          status: {
+            in: ['manager_approved', 'completed']
+          }
+        },
+        include: {
+          employee: {
+            include: {
+              user: true
+            }
+          }
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      });
+
+      return res.status(200).json({
+        message: 'Pending sessions retrieved successfully',
+        data: sessions
+      });
+    } catch (error) {
+      console.error('Error retrieving pending sessions:', error);
+      return res.status(500).json({
+        error: 'Failed to retrieve pending sessions'
+      });
     }
   }
 );

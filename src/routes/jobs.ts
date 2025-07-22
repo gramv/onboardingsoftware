@@ -464,4 +464,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-export default router; 
+import jobApplicationsRouter from './jobApplications';
+router.use('/applications', jobApplicationsRouter);
+
+export default router;   

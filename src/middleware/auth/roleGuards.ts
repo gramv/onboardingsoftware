@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { PERMISSIONS } from '@/types/auth'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import { PERMISSIONS } from '../types/auth'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 // Added comment to trigger hooks - i18n compliance check
 
@@ -213,6 +213,20 @@ export const roleGuard = (allowedRoles: string[]) => {
       return;
     }
     
+    next();
+  };
+};
+
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: any, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
     next();
   };
 };

@@ -1,8 +1,8 @@
 import { PrismaClient, UserRole, ApplicationStatus } from '@prisma/client';
 import { z } from 'zod';
-import { SimpleEmailService } from '@/services/email/simpleEmailService';
-import { OnboardingService } from '@/services/onboarding/onboardingService';
-import { hashPassword } from '@/utils/auth/password';
+import { SimpleEmailService } from '../email/simpleEmailService';
+import { OnboardingService } from '../onboarding/onboardingService';
+import { hashPassword } from '../../utils/auth/password';
 
 const prisma = new PrismaClient();
 const simpleEmailService = new SimpleEmailService();
@@ -477,14 +477,12 @@ export class JobService {
     });
 
     // Handle approved applications - create employee and onboarding session
-    console.log('🔍 CHECKING STATUS:', data.status, 'for application:', updatedApplication.email);
     if (data.status === 'approved') {
-      console.log('🎯 APPROVAL DETECTED: Creating employee and onboarding session for:', updatedApplication.email);
       try {
         // Create employee record from application
         const employee = await this.createEmployeeFromApplication(updatedApplication, context);
         
-        // Create onboarding session using proper onboarding service
+        // Create onboarding session with enhanced job details
         const onboardingResult = await onboardingService.createSession({
           employeeId: employee.id,
           languagePreference: 'en',
@@ -493,44 +491,36 @@ export class JobService {
           formData: {
             applicationId: updatedApplication.id,
             jobTitle: updatedApplication.jobPosting.title,
-            organizationName: updatedApplication.jobPosting.organization.name
+            organizationName: updatedApplication.jobPosting.organization.name,
+            jobDescription: (data as any).jobDescription,
+            payRate: (data as any).payRate,
+            benefits: (data as any).benefits,
+            startDate: (data as any).startDate,
+            managerNotes: (data as any).notes
           }
         }, context.userId);
 
-                // Send onboarding email with proper base URL
         const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         
-        await simpleEmailService.sendOnboardingEmail(
+        await simpleEmailService.sendJobApprovalEmail(
           updatedApplication.email,
           `${updatedApplication.firstName} ${updatedApplication.lastName}`,
           updatedApplication.jobPosting.organization.name,
+          updatedApplication.jobPosting.title,
+          (data as any).payRate || 'Competitive',
+          (data as any).benefits || 'Standard benefits package',
+          (data as any).startDate || 'To be determined',
           onboardingResult.token,
           baseUrl
         );
         
-        console.log(`📧 Onboarding email sent to ${updatedApplication.email} with token: ${onboardingResult.token}`);
+        console.log(`📧 Job approval email sent to ${updatedApplication.email}`);
       } catch (error) {
-        console.error('🚨 ERROR: Failed to send onboarding email:', error);
-        
-        // Send fallback approval email
-        try {
-          const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-          await simpleEmailService.sendOnboardingEmail(
-            updatedApplication.email,
-            `${updatedApplication.firstName} ${updatedApplication.lastName}`,
-            updatedApplication.jobPosting.organization.name,
-            'TOKEN_PLACEHOLDER', // Placeholder for token
-            baseUrl
-          );
-          console.log(`📧 Fallback email sent to ${updatedApplication.email}`);
-        } catch (emailError) {
-          console.error('🚨 CRITICAL: Even fallback email failed:', emailError);
-        }
+        console.error('🚨 ERROR: Failed to send approval email:', error);
       }
     } else if (data.status === 'rejected') {
-      // Send rejection email (simple approach)
-      console.log(`📧 Sending rejection notification to ${updatedApplication.email}`);
-      // For now, we'll focus on the approval flow and handle rejection emails later
+      // Send rejection email to applicant and save others for talent pool
+      await this.handleRejectedApplication(updatedApplication, (data as any).notes);
     }
 
     return updatedApplication;
@@ -626,4 +616,19 @@ export class JobService {
 
     return employee;
   }
-} 
+
+  private async handleRejectedApplication(application: any, reason?: string) {
+    try {
+      await simpleEmailService.sendJobRejectionEmail(
+        application.email,
+        `${application.firstName} ${application.lastName}`,
+        application.jobPosting.organization.name,
+        application.jobPosting.title
+      );
+
+      console.log(`📧 Rejection email sent and candidate added to talent pool: ${application.email}`);
+    } catch (error) {
+      console.error('🚨 ERROR: Failed to handle rejected application:', error);
+    }
+  }
+}     

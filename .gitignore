@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage reports
+coverage/
+
+# Cache
+.cache/
+node_modules
+
+# OCR training data (large files)
+*.traineddata
+
+# Large files and archives
+*.tar.gz
+*.zip
+*.rar
+repository-backup-*
+
+# Test scripts that aren't needed in production
+test-*.js
+test-*.ts
+
+# Demo and temporary files
+demo_docs/
+storage/documents/temp/
+dlssn/
+
+# Large PDF files (can be downloaded during setup)
+storage/test-forms/

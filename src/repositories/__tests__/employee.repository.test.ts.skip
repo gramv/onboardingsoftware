@@ -1,0 +1,312 @@
+import { EmployeeRepository } from '../employee.repository';
+import { UserRepository } from '../user.repository';
+import { prisma } from '@/utils/database';
+import bcrypt from 'bcryptjs';
+
+describe('EmployeeRepository', () => {
+  let employeeRepository: EmployeeRepository;
+  let userRepository: UserRepository;
+  let testOrganizationId: string;
+  let testUserId: string;
+
+  beforeAll(async () => {
+    employeeRepository = new EmployeeRepository();
+    userRepository = new UserRepository();
+    
+    // Create a test organization
+    const org = await prisma.organization.create({
+      data: {
+        name: 'Test Employee Organization',
+        type: 'motel',
+        address: {
+          street: '123 Test St',
+          city: 'Test City',
+          state: 'CA',
+          zipCode: '12345',
+          country: 'USA'
+        }
+      }
+    });
+    testOrganizationId = org.id;
+
+    // Create a test user
+    const user = await userRepository.create({
+      email: 'employee.test@example.com',
+      passwordHash: await bcrypt.hash('password123', 12),
+      role: 'employee',
+      organizationId: testOrganizationId,
+      firstName: 'Test',
+      lastName: 'Employee'
+    });
+    testUserId = user.id;
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.employee.deleteMany({
+      where: { user: { organizationId: testOrganizationId } }
+    });
+    await prisma.user.deleteMany({
+      where: { organizationId: testOrganizationId }
+    });
+    await prisma.organization.delete({
+      where: { id: testOrganizationId }
+    });
+    await prisma.$disconnect();
+  });
+
+  describe('create', () => {
+    it('should create a new employee successfully', async () => {
+      const employeeData = {
+        userId: testUserId,
+        employeeId: 'EMP-TEST-001',
+        hireDate: new Date('2024-01-15'),
+        position: 'Front Desk Clerk',
+        department: 'Reception',
+        hourlyRate: 18.50,
+        emergencyContact: {
+          name: 'Emergency Contact',
+          relationship: 'Spouse',
+          phone: '+1-555-0001'
+        },
+        address: {
+          street: '123 Employee St',
+          city: 'Test City',
+          state: 'CA',
+          zipCode: '12345',
+          country: 'USA'
+        }
+      };
+
+      const employee = await employeeRepository.create(employeeData);
+
+      expect(employee).toBeDefined();
+      expect(employee.employeeId).toBe(employeeData.employeeId);
+      expect(employee.position).toBe(employeeData.position);
+      expect(employee.department).toBe(employeeData.department);
+      expect(employee.hourlyRate?.toNumber()).toBe(employeeData.hourlyRate);
+      expect(employee.employmentStatus).toBe('active'); // Default value
+      expect(employee.userId).toBe(testUserId);
+    });
+
+    it('should create employee with default employment status', async () => {
+      // Create another user for this test
+      const user = await userRepository.create({
+        email: 'employee2.test@example.com',
+        passwordHash: await bcrypt.hash('password123', 12),
+        role: 'employee',
+        organizationId: testOrganizationId,
+        firstName: 'Test2',
+        lastName: 'Employee2'
+      });
+
+      const employeeData = {
+        userId: user.id,
+        employeeId: 'EMP-TEST-002',
+        hireDate: new Date('2024-02-01'),
+        position: 'Housekeeper'
+      };
+
+      const employee = await employeeRepository.create(employeeData);
+      expect(employee.employmentStatus).toBe('active');
+    });
+  });
+
+  describe('findByEmployeeId', () => {
+    it('should find employee by employee ID', async () => {
+      const employeeId = 'EMP-FIND-001';
+      
+      // Create user and employee for this test
+      const user = await userRepository.create({
+        email: 'findemployee@example.com',
+        passwordHash: await bcrypt.hash('password123', 12),
+        role: 'employee',
+        organizationId: testOrganizationId,
+        firstName: 'Find',
+        lastName: 'Employee'
+      });
+
+      await employeeRepository.create({
+        userId: user.id,
+        employeeId,
+        hireDate: new Date('2024-01-01'),
+        position: 'Test Position'
+      });
+
+      const foundEmployee = await employeeRepository.findByEmployeeId(employeeId);
+
+      expect(foundEmployee).toBeDefined();
+      expect(foundEmployee?.employeeId).toBe(employeeId);
+      expect(foundEmployee?.userId).toBe(user.id);
+    });
+
+    it('should return null for non-existent employee ID', async () => {
+      const foundEmployee = await employeeRepository.findByEmployeeId('NON-EXISTENT');
+      expect(foundEmployee).toBeNull();
+    });
+  });
+
+  describe('employeeIdExists', () => {
+    it('should return true for existing employee ID', async () => {
+      const employeeId = 'EMP-EXISTS-001';
+      
+      const user = await userRepository.create({
+        email: 'exists.employee@example.com',
+        passwordHash: await bcrypt.hash('password123', 12),
+        role: 'employee',
+        organizationId: testOrganizationId,
+        firstName: 'Exists',
+        lastName: 'Employee'
+      });
+
+      await employeeRepository.create({
+        userId: user.id,
+        employeeId,
+        hireDate: new Date('2024-01-01')
+      });
+
+      const exists = await employeeRepository.employeeIdExists(employeeId);
+      expect(exists).toBe(true);
+    });
+
+    it('should return false for non-existent employee ID', async () => {
+      const exists = await employeeRepository.employeeIdExists('DOES-NOT-EXIST');
+      expect(exists).toBe(false);
+    });
+  });
+
+  describe('list', () => {
+    beforeAll(async () => {
+      // Create multiple test employees
+      const users = [];
+      for (let i = 1; i <= 3; i++) {
+        const user = await userRepository.create({
+          email: `listemployee${i}@example.com`,
+          passwordHash: await bcrypt.hash('password123', 12),
+          role: 'employee',
+          organizationId: testOrganizationId,
+          firstName: `List${i}`,
+          lastName: 'Employee'
+        });
+        users.push(user);
+      }
+
+      const employees = [
+        {
+          userId: users[0].id,
+          employeeId: 'EMP-LIST-001',
+          hireDate: new Date('2024-01-01'),
+          position: 'Front Desk',
+          department: 'Reception'
+        },
+        {
+          userId: users[1].id,
+          employeeId: 'EMP-LIST-002',
+          hireDate: new Date('2024-02-01'),
+          position: 'Housekeeper',
+          department: 'Housekeeping'
+        },
+        {
+          userId: users[2].id,
+          employeeId: 'EMP-LIST-003',
+          hireDate: new Date('2024-03-01'),
+          position: 'Maintenance',
+          department: 'Facilities',
+          employmentStatus: 'terminated' as const
+        }
+      ];
+
+      for (const employeeData of employees) {
+        await employeeRepository.create(employeeData);
+      }
+    });
+
+    it('should list employees with pagination', async () => {
+      const result = await employeeRepository.list({}, { page: 1, limit: 5 });
+
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.pagination).toBeDefined();
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(5);
+    });
+
+    it('should filter employees by employment status', async () => {
+      const result = await employeeRepository.list({ employmentStatus: 'active' });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      result.data.forEach(employee => {
+        expect(employee.employmentStatus).toBe('active');
+      });
+    });
+
+    it('should filter employees by department', async () => {
+      const result = await employeeRepository.list({ department: 'Reception' });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      result.data.forEach(employee => {
+        expect(employee.department).toBe('Reception');
+      });
+    });
+
+    it('should search employees by name', async () => {
+      const result = await employeeRepository.list({ search: 'List1' });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      // Just check that we got results - the search logic is tested in the repository
+      expect(result.data[0].employeeId).toContain('LIST');
+    });
+  });
+
+  describe('terminate', () => {
+    it('should terminate employee successfully', async () => {
+      // Create user and employee for termination test
+      const user = await userRepository.create({
+        email: 'terminate@example.com',
+        passwordHash: await bcrypt.hash('password123', 12),
+        role: 'employee',
+        organizationId: testOrganizationId,
+        firstName: 'Terminate',
+        lastName: 'Employee'
+      });
+
+      const employee = await employeeRepository.create({
+        userId: user.id,
+        employeeId: 'EMP-TERMINATE-001',
+        hireDate: new Date('2024-01-01'),
+        position: 'Test Position'
+      });
+
+      const terminationData = {
+        terminationDate: new Date('2024-06-01'),
+        managerRating: 4,
+        rehireEligible: true
+      };
+
+      const terminatedEmployee = await employeeRepository.terminate(employee.id, terminationData);
+
+      expect(terminatedEmployee.employmentStatus).toBe('terminated');
+      expect(terminatedEmployee.terminationDate).toEqual(terminationData.terminationDate);
+      expect(terminatedEmployee.managerRating).toBe(terminationData.managerRating);
+      expect(terminatedEmployee.rehireEligible).toBe(terminationData.rehireEligible);
+
+      // Check that user account was deactivated
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.isActive).toBe(false);
+    });
+  });
+
+  describe('getOrganizationStats', () => {
+    it('should return correct organization statistics', async () => {
+      const stats = await employeeRepository.getOrganizationStats(testOrganizationId);
+
+      expect(stats).toBeDefined();
+      expect(typeof stats.total).toBe('number');
+      expect(typeof stats.active).toBe('number');
+      expect(typeof stats.terminated).toBe('number');
+      expect(typeof stats.onLeave).toBe('number');
+      expect(typeof stats.activePercentage).toBe('number');
+      expect(stats.total).toBeGreaterThanOrEqual(stats.active + stats.terminated + stats.onLeave);
+    });
+  });
+});

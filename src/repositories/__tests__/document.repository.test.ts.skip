@@ -1,0 +1,324 @@
+import { DocumentRepository } from '../document.repository';
+import { EmployeeRepository } from '../employee.repository';
+import { UserRepository } from '../user.repository';
+import { prisma } from '@/utils/database';
+import bcrypt from 'bcryptjs';
+
+describe('DocumentRepository', () => {
+  let documentRepository: DocumentRepository;
+  let employeeRepository: EmployeeRepository;
+  let userRepository: UserRepository;
+  let testOrganizationId: string;
+  let testEmployeeId: string;
+
+  beforeAll(async () => {
+    documentRepository = new DocumentRepository();
+    employeeRepository = new EmployeeRepository();
+    userRepository = new UserRepository();
+    
+    // Create a test organization
+    const org = await prisma.organization.create({
+      data: {
+        name: 'Test Document Organization',
+        type: 'motel',
+        address: {
+          street: '123 Test St',
+          city: 'Test City',
+          state: 'CA',
+          zipCode: '12345',
+          country: 'USA'
+        }
+      }
+    });
+    testOrganizationId = org.id;
+
+    // Create a test user and employee
+    const user = await userRepository.create({
+      email: 'document.test@example.com',
+      passwordHash: await bcrypt.hash('password123', 12),
+      role: 'employee',
+      organizationId: testOrganizationId,
+      firstName: 'Document',
+      lastName: 'Test'
+    });
+
+    const employee = await employeeRepository.create({
+      userId: user.id,
+      employeeId: 'EMP-DOC-001',
+      hireDate: new Date('2024-01-01'),
+      position: 'Test Position'
+    });
+    testEmployeeId = employee.id;
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.document.deleteMany({
+      where: { employee: { user: { organizationId: testOrganizationId } } }
+    });
+    await prisma.employee.deleteMany({
+      where: { user: { organizationId: testOrganizationId } }
+    });
+    await prisma.user.deleteMany({
+      where: { organizationId: testOrganizationId }
+    });
+    await prisma.organization.delete({
+      where: { id: testOrganizationId }
+    });
+    await prisma.$disconnect();
+  });
+
+  describe('create', () => {
+    it('should create a new document successfully', async () => {
+      const documentData = {
+        employeeId: testEmployeeId,
+        documentType: 'handbook' as const,
+        documentName: 'Employee Handbook',
+        filePath: '/uploads/handbook.pdf',
+        fileSize: 1024000,
+        mimeType: 'application/pdf'
+      };
+
+      const document = await documentRepository.create(documentData);
+
+      expect(document).toBeDefined();
+      expect(document.employeeId).toBe(testEmployeeId);
+      expect(document.documentType).toBe(documentData.documentType);
+      expect(document.documentName).toBe(documentData.documentName);
+      expect(document.filePath).toBe(documentData.filePath);
+      expect(document.fileSize).toBe(documentData.fileSize);
+      expect(document.mimeType).toBe(documentData.mimeType);
+      expect(document.isSigned).toBe(false); // Default value
+      expect(document.version).toBe(1); // Default value
+    });
+
+    it('should create document with default values', async () => {
+      const documentData = {
+        employeeId: testEmployeeId,
+        documentType: 'w4' as const
+      };
+
+      const document = await documentRepository.create(documentData);
+
+      expect(document.isSigned).toBe(false);
+      expect(document.version).toBe(1);
+      expect(document.employeeId).toBe(testEmployeeId);
+    });
+  });
+
+  describe('findByEmployee', () => {
+    beforeAll(async () => {
+      // Create test documents
+      const documents = [
+        {
+          employeeId: testEmployeeId,
+          documentType: 'ssn' as const,
+          documentName: 'SSN Card'
+        },
+        {
+          employeeId: testEmployeeId,
+          documentType: 'drivers_license' as const,
+          documentName: 'Driver License'
+        }
+      ];
+
+      for (const docData of documents) {
+        await documentRepository.create(docData);
+      }
+    });
+
+    it('should find all documents for an employee', async () => {
+      const documents = await documentRepository.findByEmployee(testEmployeeId);
+
+      expect(documents).toBeDefined();
+      expect(Array.isArray(documents)).toBe(true);
+      expect(documents.length).toBeGreaterThan(0);
+      
+      documents.forEach(doc => {
+        expect(doc.employeeId).toBe(testEmployeeId);
+      });
+    });
+  });
+
+  describe('findByEmployeeAndType', () => {
+    it('should find document by employee and type', async () => {
+      await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'i9',
+        documentName: 'I-9 Form'
+      });
+
+      const document = await documentRepository.findByEmployeeAndType(testEmployeeId, 'i9');
+
+      expect(document).toBeDefined();
+      expect(document).not.toBeNull();
+      expect(document!.employeeId).toBe(testEmployeeId);
+      expect(document!.documentType).toBe('i9');
+    });
+
+    it('should return null when no document found', async () => {
+      const document = await documentRepository.findByEmployeeAndType(testEmployeeId, 'w4');
+      expect(document).toBeNull();
+    });
+  });
+
+  describe('findLatestByEmployeeAndType', () => {
+    it('should find the latest version of a document type', async () => {
+      // Create multiple versions
+      const doc1 = await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'policy',
+        documentName: 'Policy v1'
+      });
+
+      await documentRepository.createNewVersion(doc1.id, {
+        employeeId: testEmployeeId,
+        documentType: 'policy',
+        documentName: 'Policy v2'
+      });
+
+      const latestDoc = await documentRepository.findLatestByEmployeeAndType(testEmployeeId, 'policy');
+
+      expect(latestDoc).toBeDefined();
+      expect(latestDoc?.documentType).toBe('policy');
+      expect(latestDoc?.version).toBe(2);
+      expect(latestDoc?.documentName).toBe('Policy v2');
+    });
+  });
+
+  describe('signDocument', () => {
+    it('should sign a document successfully', async () => {
+      const document = await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'handbook',
+        documentName: 'Handbook to Sign'
+      });
+
+      const signatureData = {
+        signatureData: 'base64-signature-data',
+        signedAt: new Date()
+      };
+
+      const signedDoc = await documentRepository.signDocument(document.id, signatureData);
+
+      expect(signedDoc.isSigned).toBe(true);
+      expect(signedDoc.signedAt).toEqual(signatureData.signedAt);
+      expect(signedDoc.signatureData).toBe(signatureData.signatureData);
+    });
+  });
+
+  describe('findUnsignedByEmployee', () => {
+    it('should find unsigned documents for an employee', async () => {
+      // Create an unsigned document
+      await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'handbook',
+        documentName: 'Unsigned Handbook'
+      });
+
+      const unsignedDocs = await documentRepository.findUnsignedByEmployee(testEmployeeId);
+
+      expect(unsignedDocs).toBeDefined();
+      expect(Array.isArray(unsignedDocs)).toBe(true);
+      expect(unsignedDocs.length).toBeGreaterThan(0);
+      
+      unsignedDocs.forEach(doc => {
+        expect(doc.employeeId).toBe(testEmployeeId);
+        expect(doc.isSigned).toBe(false);
+      });
+    });
+  });
+
+  describe('updateOCRData', () => {
+    it('should update OCR data for a document', async () => {
+      const document = await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'ssn',
+        documentName: 'SSN for OCR'
+      });
+
+      const ocrData = {
+        processingStatus: 'completed',
+        extractedText: 'SSN: 123-45-6789',
+        confidence: 0.95
+      };
+
+      const updatedDoc = await documentRepository.updateOCRData(document.id, ocrData);
+
+      expect(updatedDoc.ocrData).toEqual(ocrData);
+    });
+  });
+
+  describe('list', () => {
+    it('should list documents with pagination', async () => {
+      const result = await documentRepository.list({}, { page: 1, limit: 5 });
+
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.pagination).toBeDefined();
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(5);
+    });
+
+    it('should filter documents by employee', async () => {
+      const result = await documentRepository.list({ employeeId: testEmployeeId });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      result.data.forEach(doc => {
+        expect(doc.employeeId).toBe(testEmployeeId);
+      });
+    });
+
+    it('should filter documents by type', async () => {
+      const result = await documentRepository.list({ documentType: 'handbook' });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      result.data.forEach(doc => {
+        expect(doc.documentType).toBe('handbook');
+      });
+    });
+
+    it('should filter documents by signed status', async () => {
+      const result = await documentRepository.list({ isSigned: false });
+
+      expect(result.data.length).toBeGreaterThan(0);
+      result.data.forEach(doc => {
+        expect(doc.isSigned).toBe(false);
+      });
+    });
+  });
+
+  describe('getOrganizationStats', () => {
+    it('should return correct organization statistics', async () => {
+      const stats = await documentRepository.getOrganizationStats(testOrganizationId);
+
+      expect(stats).toBeDefined();
+      expect(typeof stats.total).toBe('number');
+      expect(typeof stats.signed).toBe('number');
+      expect(typeof stats.unsigned).toBe('number');
+      expect(typeof stats.withOCR).toBe('number');
+      expect(typeof stats.signedPercentage).toBe('number');
+      expect(stats.total).toBeGreaterThanOrEqual(stats.signed + stats.unsigned);
+    });
+  });
+
+  describe('filePathExists', () => {
+    it('should return true for existing file path', async () => {
+      const filePath = '/uploads/unique-file.pdf';
+      
+      await documentRepository.create({
+        employeeId: testEmployeeId,
+        documentType: 'other',
+        filePath
+      });
+
+      const exists = await documentRepository.filePathExists(filePath);
+      expect(exists).toBe(true);
+    });
+
+    it('should return false for non-existent file path', async () => {
+      const exists = await documentRepository.filePathExists('/uploads/non-existent.pdf');
+      expect(exists).toBe(false);
+    });
+  });
+});

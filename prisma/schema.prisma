@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String           @unique
+  type        OrganizationType
+  parentId    String?          @map("parent_id") @db.Uuid
+  address     Json
+  settings    Json             @default("{}")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  jobPostings JobPosting[]
+  parent      Organization?    @relation("OrganizationHierarchy", fields: [parentId], references: [id])
+  children    Organization[]   @relation("OrganizationHierarchy")
+  users       User[]
+
+  @@map("organizations")
+}
+
+model User {
+  id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                    String                    @unique
+  passwordHash             String                    @map("password_hash")
+  role                     UserRole
+  organizationId           String                    @map("organization_id") @db.Uuid
+  firstName                String                    @map("first_name")
+  lastName                 String                    @map("last_name")
+  phone                    String?
+  languagePreference       LanguageCode              @default(en) @map("language_preference")
+  isActive                 Boolean                   @default(true) @map("is_active")
+  mfaEnabled               Boolean                   @default(false) @map("mfa_enabled")
+  mfaSecret                String?                   @map("mfa_secret")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  announcementReadReceipts AnnouncementReadReceipt[]
+  employee                 Employee?
+  reviewedForms            FormSubmission[]          @relation("FormReviewer")
+  reviewedApplications     JobApplication[]          @relation("ApplicationReviewer")
+  createdJobPostings       JobPosting[]              @relation("JobPostingCreator")
+  receivedMessages         Message[]                 @relation("MessageReceiver")
+  sentMessages             Message[]                 @relation("MessageSender")
+  createdScheduleEntries   ScheduleEntry[]           @relation("ScheduleCreator")
+  organization             Organization              @relation(fields: [organizationId], references: [id])
+
+  @@map("users")
+}
+
+model Employee {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String              @unique @map("user_id") @db.Uuid
+  employeeId         String              @unique @map("employee_id")
+  ssnEncrypted       String?             @map("ssn_encrypted")
+  dateOfBirth        DateTime?           @map("date_of_birth") @db.Date
+  hireDate           DateTime            @map("hire_date") @db.Date
+  terminationDate    DateTime?           @map("termination_date") @db.Date
+  position           String?
+  department         String?
+  hourlyRate         Decimal?            @map("hourly_rate") @db.Decimal(10, 2)
+  employmentStatus   EmploymentStatus    @default(active) @map("employment_status")
+  rehireEligible     Boolean             @default(true) @map("rehire_eligible")
+  managerRating      Int?                @map("manager_rating")
+  emergencyContact   Json?               @map("emergency_contact")
+  address            Json?
+  schedule           Json?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  documents          Document[]
+  user               User                @relation(fields: [userId], references: [id])
+  formSubmissions    FormSubmission[]
+  onboardingSessions OnboardingSession[]
+  scheduleEntries    ScheduleEntry[]
+
+  @@map("employees")
+}
+
+model Document {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId    String       @map("employee_id") @db.Uuid
+  documentType  DocumentType @map("document_type")
+  documentName  String?      @map("document_name")
+  filePath      String?      @map("file_path")
+  fileSize      Int?         @map("file_size")
+  mimeType      String?      @map("mime_type")
+  ocrData       Json?        @map("ocr_data")
+  isSigned      Boolean      @default(false) @map("is_signed")
+  signedAt      DateTime?    @map("signed_at")
+  signatureData String?      @map("signature_data")
+  version       Int          @default(1)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  employee      Employee     @relation(fields: [employeeId], references: [id])
+
+  @@map("documents")
+}
+
+model ScheduleEntry {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId     String       @map("employee_id") @db.Uuid
+  date           DateTime     @db.Date
+  startTime      String       @map("start_time")
+  endTime        String       @map("end_time")
+  breakDuration  Int          @default(0) @map("break_duration")
+  isWorkDay      Boolean      @default(true) @map("is_work_day")
+  scheduleType   ScheduleType @default(regular) @map("schedule_type")
+  effectiveFrom  DateTime     @map("effective_from") @db.Date
+  effectiveUntil DateTime?    @map("effective_until") @db.Date
+  createdBy      String       @map("created_by") @db.Uuid
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  creator        User         @relation("ScheduleCreator", fields: [createdBy], references: [id])
+  employee       Employee     @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date, effectiveFrom])
+  @@map("schedule_entries")
+}
+
+model OnboardingSession {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId         String?          @map("employee_id") @db.Uuid
+  token              String           @unique
+  languagePreference LanguageCode     @default(en) @map("language_preference")
+  currentStep        String?          @map("current_step")
+  formData           Json             @default("{}") @map("form_data")
+  status             OnboardingStatus @default(in_progress)
+  expiresAt          DateTime         @map("expires_at")
+  completedAt        DateTime?        @map("completed_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  applicationId      String?          @map("application_id") @db.Uuid
+  email              String?
+  firstName          String?          @map("first_name")
+  jobTitle           String?          @map("job_title")
+  lastName           String?          @map("last_name")
+  organizationId     String?          @map("organization_id") @db.Uuid
+  organizationName   String?          @map("organization_name")
+  jobApplication     JobApplication?  @relation(fields: [applicationId], references: [id])
+  employee           Employee?        @relation(fields: [employeeId], references: [id])
+
+  @@map("onboarding_sessions")
+}
+
+model Message {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderId   String    @map("sender_id") @db.Uuid
+  receiverId String?   @map("receiver_id") @db.Uuid
+  subject    String?
+  content    String
+  isRead     Boolean   @default(false) @map("is_read")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  receiver   User?     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  sender     User      @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model Announcement {
+  id           String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  content      String
+  priority     String                    @default("normal")
+  targetRoles  String[]                  @map("target_roles")
+  targetOrgs   String[]                  @map("target_orgs") @db.Uuid
+  isActive     Boolean                   @default(true) @map("is_active")
+  expiresAt    DateTime?                 @map("expires_at")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+  readReceipts AnnouncementReadReceipt[]
+
+  @@map("announcements")
+}
+
+model AnnouncementReadReceipt {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  announcementId String       @map("announcement_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  readAt         DateTime     @default(now()) @map("read_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_read_receipts")
+}
+
+model FormSubmission {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formId           String       @unique @map("form_id")
+  employeeId       String       @map("employee_id") @db.Uuid
+  formType         FormType     @map("form_type")
+  language         LanguageCode @default(en)
+  data             Json         @default("{}")
+  status           FormStatus   @default(draft)
+  version          String       @default("1.0")
+  validationErrors Json?        @map("validation_errors")
+  submittedAt      DateTime?    @map("submitted_at")
+  reviewedAt       DateTime?    @map("reviewed_at")
+  reviewedBy       String?      @map("reviewed_by") @db.Uuid
+  pdfPath          String?      @map("pdf_path")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer         User?        @relation("FormReviewer", fields: [reviewedBy], references: [id])
+
+  @@map("form_submissions")
+}
+
+model JobPosting {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  title          String
+  description    String
+  department     String
+  position       String
+  salaryRange    String           @map("salary_range")
+  requirements   String
+  benefits       String
+  isActive       Boolean          @default(true) @map("is_active")
+  expiresAt      DateTime         @map("expires_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  createdBy      String           @map("created_by") @db.Uuid
+  applications   JobApplication[]
+  creator        User             @relation("JobPostingCreator", fields: [createdBy], references: [id])
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("job_postings")
+}
+
+model JobApplication {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobPostingId       String              @map("job_posting_id") @db.Uuid
+  firstName          String              @map("first_name")
+  lastName           String              @map("last_name")
+  email              String
+  phone              String
+  address            Json
+  resumeText         String?             @map("resume_text")
+  experience         String?
+  education          String?
+  additionalInfo     String?             @map("additional_info")
+  status             ApplicationStatus   @default(pending)
+  appliedAt          DateTime            @default(now()) @map("applied_at")
+  reviewedAt         DateTime?           @map("reviewed_at")
+  reviewedBy         String?             @map("reviewed_by") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  jobPosting         JobPosting          @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  reviewer           User?               @relation("ApplicationReviewer", fields: [reviewedBy], references: [id])
+  onboardingSessions OnboardingSession[]
+
+  @@map("job_applications")
+}
+
+enum UserRole {
+  hr_admin
+  manager
+  employee
+}
+
+enum OrganizationType {
+  corporate
+  motel
+}
+
+enum LanguageCode {
+  en
+  es
+}
+
+enum EmploymentStatus {
+  active
+  terminated
+  on_leave
+}
+
+enum DocumentType {
+  ssn
+  drivers_license
+  state_id
+  passport
+  work_authorization
+  i9
+  w4
+  handbook
+  policy
+  experience_letter
+  other
+}
+
+enum ScheduleType {
+  regular
+  temporary
+}
+
+enum OnboardingStatus {
+  in_progress
+  completed
+  expired
+  cancelled
+  manager_approved
+  approved
+  rejected
+}
+
+enum FormType {
+  i9
+  w4
+  handbook_acknowledgment
+  policy_acknowledgment
+}
+
+enum FormStatus {
+  draft
+  in_progress
+  completed
+  submitted
+  approved
+  rejected
+}
+
+enum ApplicationStatus {
+  pending
+  reviewed
+  approved
+  rejected
+}

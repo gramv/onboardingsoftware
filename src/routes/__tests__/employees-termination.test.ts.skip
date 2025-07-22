@@ -1,0 +1,778 @@
+import request from 'supertest';
+import express, { Request, Response, NextFunction } from 'express';
+import employeesRouter from '../employees';
+import { authenticate, requirePermission } from '@/middleware/auth/authMiddleware';
+import { EmployeeService } from '@/services/employee/employeeService';
+import { 
+  translationService, 
+  EMPLOYEE_SUCCESS_KEYS, 
+  EMPLOYEE_ERROR_KEYS,
+  EMPLOYMENT_STATUS_KEYS,
+  DEPARTMENT_KEYS,
+  POSITION_KEYS 
+} from '@/utils/i18n/translationService';
+
+// Mock the middleware and services
+jest.mock('@/middleware/auth/authMiddleware');
+jest.mock('@/services/employee/employeeService');
+
+describe('Employee Termination and Alumni Routes', () => {
+  let app: express.Application;
+  let mockEmployeeService: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Mock authentication middleware
+    (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+      req.user = {
+        userId: 'hr-user-id',
+        email: 'hr@example.com',
+        role: 'hr_admin',
+        organizationId: 'corporate-org-id',
+        languagePreference: 'en'
+      };
+      next();
+    });
+
+    (requirePermission as jest.Mock).mockImplementation(() => (req: Request, res: Response, next: NextFunction) => {
+      req.permissions = ['manage_all_employees', 'view_all_employees'];
+      next();
+    });
+
+    // Mock employee service
+    mockEmployeeService = {
+      terminateEmployeeWithExperienceLetter: jest.fn(),
+      generateExperienceLetterForEmployee: jest.fn(),
+      getAlumni: jest.fn(),
+      searchAlumni: jest.fn(),
+      getAlumniEmploymentHistory: jest.fn(),
+      // Add other required methods to avoid TypeScript errors
+      createEmployee: jest.fn(),
+      getEmployee: jest.fn(),
+      updateEmployee: jest.fn(),
+      listEmployees: jest.fn(),
+      searchEmployees: jest.fn(),
+      terminateEmployee: jest.fn(),
+      getEmployeeStats: jest.fn()
+    };
+
+    (EmployeeService as jest.MockedClass<typeof EmployeeService>)
+      .mockImplementation(() => mockEmployeeService);
+
+    // Create Express app with routes
+    app = express();
+    app.use(express.json());
+    app.use('/employees', employeesRouter);
+  });
+
+  describe('POST /employees/:id/terminate', () => {
+    const terminationData = {
+      terminationDate: '2024-02-01',
+      managerRating: 4,
+      rehireEligible: true,
+      generateExperienceLetter: true,
+      includeRating: true,
+      includeRecommendation: true,
+      customMessage: 'Great employee, would rehire.'
+    };
+
+    it('should terminate employee with experience letter generation', async () => {
+      // Mock the service response
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockResolvedValue({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          user: {
+            firstName: 'John',
+            lastName: 'Doe'
+          }
+        },
+        experienceLetterPath: '/path/to/experience-letter.pdf'
+      });
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send(terminationData)
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        message: translationService.t(EMPLOYEE_SUCCESS_KEYS.EMPLOYEE_TERMINATED, {}, 'en'),
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001'
+        },
+        experienceLetterGenerated: true,
+        experienceLetterPath: '/path/to/experience-letter.pdf'
+      });
+
+      expect(mockEmployeeService.terminateEmployeeWithExperienceLetter).toHaveBeenCalledWith(
+        'emp-1',
+        expect.objectContaining({
+          terminationDate: expect.any(Date),
+          managerRating: 4,
+          rehireEligible: true,
+          generateExperienceLetter: true
+        }),
+        expect.objectContaining({
+          userId: 'hr-user-id',
+          role: 'hr_admin',
+          organizationId: 'corporate-org-id'
+        }),
+        expect.objectContaining({
+          includeRating: true,
+          includeRecommendation: true,
+          customMessage: 'Great employee, would rehire.',
+          locale: 'en'
+        })
+      );
+    });
+
+    it('should terminate employee without experience letter when disabled', async () => {
+      const terminationDataNoLetter = {
+        ...terminationData,
+        generateExperienceLetter: false
+      };
+
+      // Mock the service response
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockResolvedValue({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          user: {
+            firstName: 'John',
+            lastName: 'Doe'
+          }
+        }
+      });
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send(terminationDataNoLetter)
+        .expect(200);
+
+      expect(response.body.experienceLetterGenerated).toBeFalsy();
+      expect(response.body.experienceLetterPath).toBeUndefined();
+    });
+
+    it('should validate termination data', async () => {
+      const invalidData = {
+        terminationDate: '2024-02-01',
+        managerRating: 6, // Invalid rating
+        rehireEligible: true
+      };
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send(invalidData)
+        .expect(400);
+
+      expect(response.body.error).toBeDefined();
+    });
+
+    it('should handle service errors', async () => {
+      const errorMessage = translationService.t(EMPLOYEE_ERROR_KEYS.EMPLOYEE_NOT_FOUND, {}, 'en');
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockRejectedValue(
+        new Error(errorMessage)
+      );
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send(terminationData)
+        .expect(400);
+
+      expect(response.body.error).toBe(errorMessage);
+    });
+  });
+
+  describe('POST /employees/:id/experience-letter', () => {
+    const experienceLetterOptions = {
+      includeRating: true,
+      includeRecommendation: true,
+      customMessage: 'Excellent employee with strong work ethic.'
+    };
+
+    it('should generate experience letter for terminated employee', async () => {
+      const experienceLetterPath = '/path/to/experience-letter.pdf';
+      mockEmployeeService.generateExperienceLetterForEmployee.mockResolvedValue(experienceLetterPath);
+
+      const response = await request(app)
+        .post('/employees/emp-1/experience-letter')
+        .send(experienceLetterOptions)
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        message: translationService.t(EMPLOYEE_SUCCESS_KEYS.EXPERIENCE_LETTER_GENERATED, {}, 'en'),
+        experienceLetterPath
+      });
+
+      expect(mockEmployeeService.generateExperienceLetterForEmployee).toHaveBeenCalledWith(
+        'emp-1',
+        expect.objectContaining({
+          userId: 'hr-user-id',
+          role: 'hr_admin'
+        }),
+        expect.objectContaining({
+          includeRating: true,
+          includeRecommendation: true,
+          customMessage: 'Excellent employee with strong work ethic.',
+          locale: 'en'
+        })
+      );
+    });
+
+    it('should handle service errors', async () => {
+      const errorMessage = translationService.t(EMPLOYEE_ERROR_KEYS.EMPLOYEE_NOT_TERMINATED, {}, 'en');
+      mockEmployeeService.generateExperienceLetterForEmployee.mockRejectedValue(
+        new Error(errorMessage)
+      );
+
+      const response = await request(app)
+        .post('/employees/emp-1/experience-letter')
+        .send(experienceLetterOptions)
+        .expect(400);
+
+      expect(response.body.error).toBe(errorMessage);
+    });
+    
+    it('should generate experience letter in Spanish', async () => {
+      const experienceLetterPath = '/path/to/carta-experiencia.pdf';
+      mockEmployeeService.generateExperienceLetterForEmployee.mockResolvedValue(experienceLetterPath);
+
+      // Mock Spanish-speaking user
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        req.user = {
+          userId: 'hr-user-id',
+          email: 'hr@example.com',
+          role: 'hr_admin',
+          organizationId: 'corporate-org-id',
+          languagePreference: 'es'
+        };
+        next();
+      });
+
+      const response = await request(app)
+        .post('/employees/emp-1/experience-letter')
+        .send(experienceLetterOptions)
+        .expect(200);
+
+      expect(response.body.message).toBe(
+        translationService.t(EMPLOYEE_SUCCESS_KEYS.EXPERIENCE_LETTER_GENERATED, {}, 'es')
+      );
+      
+      expect(mockEmployeeService.generateExperienceLetterForEmployee).toHaveBeenCalledWith(
+        'emp-1',
+        expect.objectContaining({
+          userId: 'hr-user-id',
+          role: 'hr_admin',
+          locale: 'es'
+        }),
+        expect.objectContaining({
+          includeRating: true,
+          includeRecommendation: true,
+          customMessage: 'Excellent employee with strong work ethic.',
+          locale: 'es'
+        })
+      );
+    });
+  });
+
+  describe('GET /employees/alumni', () => {
+    it('should get alumni with filters', async () => {
+      // Mock alumni response
+      mockEmployeeService.getAlumni.mockResolvedValue([
+        {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          hireDate: new Date('2022-01-01'),
+          terminationDate: new Date('2023-12-31'),
+          managerRating: 4,
+          rehireEligible: true,
+          user: {
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            organization: { name: 'Sunset Motel' }
+          }
+        },
+        {
+          id: 'emp-2',
+          employeeId: 'EMP002',
+          employmentStatus: 'terminated',
+          hireDate: new Date('2021-06-01'),
+          terminationDate: new Date('2023-08-15'),
+          managerRating: 3,
+          rehireEligible: false,
+          user: {
+            firstName: 'Jane',
+            lastName: 'Smith',
+            email: 'jane.smith@example.com',
+            organization: { name: 'Sunset Motel' }
+          }
+        }
+      ]);
+
+      const response = await request(app)
+        .get('/employees/alumni')
+        .query({
+          minRating: '3',
+          rehireEligibleOnly: 'true',
+          organizationId: 'motel-org-id'
+        })
+        .expect(200);
+
+      expect(response.body.alumni).toHaveLength(2);
+      expect(response.body.alumni[0]).toMatchObject({
+        id: 'emp-1',
+        employeeId: 'EMP001',
+        firstName: 'John',
+        lastName: 'Doe'
+      });
+
+      expect(mockEmployeeService.getAlumni).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'hr-user-id',
+          role: 'hr_admin'
+        }),
+        expect.objectContaining({
+          organizationId: 'motel-org-id',
+          minRating: 3,
+          rehireEligibleOnly: true
+        })
+      );
+    });
+
+    it('should get all alumni without filters', async () => {
+      // Mock alumni response
+      mockEmployeeService.getAlumni.mockResolvedValue([
+        {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          user: {
+            firstName: 'John',
+            lastName: 'Doe'
+          }
+        }
+      ]);
+
+      const response = await request(app)
+        .get('/employees/alumni')
+        .expect(200);
+
+      expect(response.body.alumni).toHaveLength(1);
+      expect(mockEmployeeService.getAlumni).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({})
+      );
+    });
+  });
+
+  describe('GET /employees/alumni/search', () => {
+    it('should search alumni with query and filters', async () => {
+      // Mock search results
+      mockEmployeeService.searchAlumni.mockResolvedValue([
+        {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          managerRating: 4,
+          rehireEligible: true,
+          user: {
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            organization: { name: 'Sunset Motel' }
+          }
+        }
+      ]);
+
+      const response = await request(app)
+        .get('/employees/alumni/search')
+        .query({
+          q: 'john',
+          minRating: '3',
+          rehireEligibleOnly: 'true'
+        })
+        .expect(200);
+
+      expect(response.body.alumni).toHaveLength(1);
+      expect(response.body.alumni[0]).toMatchObject({
+        id: 'emp-1',
+        employeeId: 'EMP001',
+        firstName: 'John',
+        lastName: 'Doe'
+      });
+
+      expect(mockEmployeeService.searchAlumni).toHaveBeenCalledWith(
+        'john',
+        expect.any(Object),
+        expect.objectContaining({
+          minRating: 3,
+          rehireEligibleOnly: true
+        })
+      );
+    });
+
+    it('should require search query', async () => {
+      const response = await request(app)
+        .get('/employees/alumni/search')
+        .expect(400);
+
+      expect(response.body.error).toBeDefined();
+    });
+  });
+
+  describe('GET /employees/:id/employment-history', () => {
+    it('should get employment history with rehire recommendation', async () => {
+      // Mock employment history response
+      mockEmployeeService.getAlumniEmploymentHistory.mockResolvedValue({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          user: {
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            organization: {
+              name: 'Sunset Motel'
+            }
+          }
+        },
+        previousEmployments: [
+          {
+            hireDate: new Date('2020-01-01'),
+            terminationDate: new Date('2021-12-31'),
+            position: 'Front Desk Clerk',
+            department: 'Reception',
+            managerRating: 4,
+            rehireEligible: true,
+            workDuration: '2 years'
+          }
+        ],
+        rehireRecommendation: {
+          eligible: true,
+          averageRating: 4.5,
+          totalEmployments: 2,
+          reasons: ['High performance ratings', 'Eligible for rehire from all previous positions']
+        }
+      });
+
+      const response = await request(app)
+        .get('/employees/emp-1/employment-history')
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          firstName: 'John',
+          lastName: 'Doe'
+        },
+        previousEmployments: expect.arrayContaining([
+          expect.objectContaining({
+            position: expect.any(String),
+            department: expect.any(String),
+            managerRating: expect.any(Number),
+            rehireEligible: expect.any(Boolean)
+          })
+        ]),
+        rehireRecommendation: {
+          eligible: true,
+          averageRating: 4.5,
+          totalEmployments: 2,
+          reasons: expect.arrayContaining([
+            'High performance ratings',
+            'Eligible for rehire from all previous positions'
+          ])
+        }
+      });
+
+      expect(mockEmployeeService.getAlumniEmploymentHistory).toHaveBeenCalledWith(
+        'emp-1',
+        expect.objectContaining({
+          userId: 'hr-user-id',
+          role: 'hr_admin'
+        })
+      );
+    });
+
+    it('should handle service errors', async () => {
+      const errorMessage = translationService.t(EMPLOYEE_ERROR_KEYS.EMPLOYEE_NOT_FOUND, {}, 'en');
+      mockEmployeeService.getAlumniEmploymentHistory.mockRejectedValue(
+        new Error(errorMessage)
+      );
+
+      const response = await request(app)
+        .get('/employees/emp-1/employment-history')
+        .expect(400);
+
+      expect(response.body.error).toBe(errorMessage);
+    });
+  });
+
+  describe('Authentication and Authorization', () => {
+    it('should require authentication for termination', async () => {
+      // Override the authentication mock for this test
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        res.status(401).json({ error: 'Authentication required' });
+      });
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send({
+          terminationDate: '2024-02-01',
+          managerRating: 4,
+          rehireEligible: true
+        })
+        .expect(401);
+
+      expect(response.body.error).toBe('Authentication required');
+    });
+
+    it('should require proper permissions for alumni access', async () => {
+      // Override the authentication mock for this test
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        req.user = {
+          userId: 'employee-user-id',
+          email: 'employee@example.com',
+          role: 'employee',
+          organizationId: 'motel-org-id',
+          languagePreference: 'en'
+        };
+        next();
+      });
+
+      // Override the permission mock for this test
+      (requirePermission as jest.Mock).mockImplementation(() => (req: Request, res: Response, next: NextFunction) => {
+        res.status(403).json({ error: 'Insufficient permissions' });
+      });
+
+      const response = await request(app)
+        .get('/employees/alumni')
+        .expect(403);
+
+      expect(response.body.error).toBe('Insufficient permissions');
+    });
+  });
+
+  describe('Localization', () => {
+    beforeEach(() => {
+      // Mock Spanish-speaking user
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        req.user = {
+          userId: 'hr-user-id',
+          email: 'hr@example.com',
+          role: 'hr_admin',
+          organizationId: 'corporate-org-id',
+          languagePreference: 'es'
+        };
+        next();
+      });
+    });
+
+    it('should handle Spanish locale for termination', async () => {
+      // Mock the service response
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockResolvedValue({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          user: { firstName: 'Juan', lastName: 'Pérez' }
+        },
+        experienceLetterPath: '/path/to/carta-experiencia.pdf'
+      });
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send({
+          terminationDate: '2024-02-01',
+          managerRating: 4,
+          rehireEligible: true
+        })
+        .expect(200);
+
+      expect(response.body.message).toBe(
+        translationService.t(EMPLOYEE_SUCCESS_KEYS.EMPLOYEE_TERMINATED, {}, 'es')
+      );
+
+      expect(mockEmployeeService.terminateEmployeeWithExperienceLetter).toHaveBeenCalledWith(
+        'emp-1',
+        expect.any(Object),
+        expect.objectContaining({
+          locale: 'es'
+        }),
+        expect.objectContaining({
+          locale: 'es'
+        })
+      );
+    });
+
+    it('should translate employment status in response', async () => {
+      // Mock alumni response with employment status
+      mockEmployeeService.getAlumni.mockResolvedValue([
+        {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          position: 'front_desk_clerk',
+          department: 'reception',
+          user: {
+            firstName: 'Juan',
+            lastName: 'Pérez',
+            email: 'juan.perez@example.com',
+            organization: { name: 'Sunset Motel' }
+          }
+        }
+      ]);
+      
+      const responseEs = await request(app)
+        .get('/employees/alumni')
+        .expect(200);
+      
+      // Reset to English user for comparison
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        req.user = {
+          userId: 'hr-user-id',
+          email: 'hr@example.com',
+          role: 'hr_admin',
+          organizationId: 'corporate-org-id',
+          languagePreference: 'en'
+        };
+        next();
+      });
+      
+      const responseEn = await request(app)
+        .get('/employees/alumni')
+        .expect(200);
+      
+      // Verify Spanish translation
+      expect(responseEs.body.alumni[0].employmentStatus).toBe(
+        translationService.t(EMPLOYMENT_STATUS_KEYS.TERMINATED, {}, 'es')
+      );
+      
+      // Verify English translation
+      expect(responseEn.body.alumni[0].employmentStatus).toBe(
+        translationService.t(EMPLOYMENT_STATUS_KEYS.TERMINATED, {}, 'en')
+      );
+    });
+
+    it('should translate departments and positions correctly', async () => {
+      // Mock alumni response with department and position
+      mockEmployeeService.getAlumni.mockResolvedValue([
+        {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          position: 'front_desk_clerk',
+          department: 'reception',
+          user: {
+            firstName: 'Juan',
+            lastName: 'Pérez'
+          }
+        },
+        {
+          id: 'emp-2',
+          employeeId: 'EMP002',
+          employmentStatus: 'terminated',
+          position: 'housekeeper',
+          department: 'housekeeping',
+          user: {
+            firstName: 'Maria',
+            lastName: 'Garcia'
+          }
+        }
+      ]);
+      
+      const response = await request(app)
+        .get('/employees/alumni')
+        .expect(200);
+      
+      // Verify Spanish translations
+      expect(response.body.alumni[0].position).toBe(
+        translationService.t(POSITION_KEYS.FRONT_DESK_CLERK, {}, 'es')
+      );
+      expect(response.body.alumni[0].department).toBe(
+        translationService.t(DEPARTMENT_KEYS.RECEPTION, {}, 'es')
+      );
+      
+      expect(response.body.alumni[1].position).toBe(
+        translationService.t(POSITION_KEYS.HOUSEKEEPER, {}, 'es')
+      );
+      expect(response.body.alumni[1].department).toBe(
+        translationService.t(DEPARTMENT_KEYS.HOUSEKEEPING, {}, 'es')
+      );
+    });
+
+    it('should return translated error messages', async () => {
+      const errorMessage = translationService.t(EMPLOYEE_ERROR_KEYS.EMPLOYEE_ALREADY_TERMINATED, {}, 'es');
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockRejectedValue(
+        new Error(errorMessage)
+      );
+
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send({
+          terminationDate: '2024-02-01',
+          managerRating: 4,
+          rehireEligible: true
+        })
+        .expect(400);
+
+      expect(response.body.error).toBe(errorMessage);
+    });
+
+    it('should respect user language preference over Accept-Language header', async () => {
+      // Mock user with Spanish preference but send English Accept-Language
+      (authenticate as jest.Mock).mockImplementation((req: Request, res: Response, next: NextFunction) => {
+        req.user = {
+          userId: 'hr-user-id',
+          email: 'hr@example.com',
+          role: 'hr_admin',
+          organizationId: 'corporate-org-id',
+          languagePreference: 'es'
+        };
+        next();
+      });
+      
+      mockEmployeeService.terminateEmployeeWithExperienceLetter.mockResolvedValue({
+        employee: {
+          id: 'emp-1',
+          employeeId: 'EMP001',
+          employmentStatus: 'terminated',
+          user: { firstName: 'Juan', lastName: 'Pérez' }
+        },
+        experienceLetterPath: '/path/to/carta-experiencia.pdf'
+      });
+      
+      const response = await request(app)
+        .post('/employees/emp-1/terminate')
+        .send({
+          terminationDate: '2024-02-01',
+          managerRating: 4,
+          rehireEligible: true
+        })
+        .set('Accept-Language', 'en')
+        .expect(200);
+        
+      // Should use Spanish from user preference despite English header
+      expect(mockEmployeeService.terminateEmployeeWithExperienceLetter).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          locale: 'es'
+        }),
+        expect.objectContaining({
+          locale: 'es'
+        })
+      );
+      
+      // Response message should be in Spanish
+      expect(response.body.message).toBe(
+        translationService.t(EMPLOYEE_SUCCESS_KEYS.EMPLOYEE_TERMINATED, {}, 'es')
+      );
+    });
+  });
+});

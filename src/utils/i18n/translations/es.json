@@ -1,0 +1,384 @@
+{
+    "employee": {
+        "errors": {
+            "employeeIdExists": "El ID del empleado ya existe",
+            "emailExists": "El correo electrónico ya existe",
+            "employeeNotFound": "Empleado no encontrado",
+            "invalidManagerRating": "La calificación del gerente debe estar entre 1 y 5",
+            "cannotCreateDifferentOrg": "No se puede crear empleado en una organización diferente",
+            "insufficientPermissionsCreate": "Permisos insuficientes para crear empleado",
+            "insufficientPermissionsView": "Permisos insuficientes para ver empleado",
+            "insufficientPermissionsUpdate": "Permisos insuficientes para actualizar empleado",
+            "insufficientPermissionsTerminate": "Permisos insuficientes para terminar empleado",
+            "insufficientPermissionsStats": "Permisos insuficientes para ver estadísticas de la organización",
+            "insufficientPermissionsAlumni": "Permisos insuficientes para ver ex-empleados"
+        },
+        "success": {
+            "employeeCreated": "Empleado creado exitosamente",
+            "employeeUpdated": "Empleado actualizado exitosamente",
+            "employeeTerminated": "Empleado terminado exitosamente"
+        },
+        "fields": {
+            "employeeId": "ID de Empleado",
+            "firstName": "Nombre",
+            "lastName": "Apellido",
+            "email": "Correo Electrónico",
+            "phone": "Número de Teléfono",
+            "position": "Puesto",
+            "department": "Departamento",
+            "hourlyRate": "Tarifa por Hora",
+            "hireDate": "Fecha de Contratación",
+            "dateOfBirth": "Fecha de Nacimiento",
+            "emergencyContact": "Contacto de Emergencia",
+            "address": "Dirección",
+            "languagePreference": "Preferencia de Idioma"
+        },
+        "status": {
+            "active": "Activo",
+            "terminated": "Terminado",
+            "onLeave": "Con Licencia"
+        },
+        "departments": {
+            "reception": "Recepción",
+            "housekeeping": "Limpieza",
+            "maintenance": "Mantenimiento",
+            "facilities": "Instalaciones",
+            "management": "Gerencia",
+            "security": "Seguridad"
+        },
+        "positions": {
+            "frontDeskClerk": "Recepcionista",
+            "housekeeper": "Camarera/o",
+            "maintenanceWorker": "Trabajador de Mantenimiento",
+            "nightAuditor": "Auditor Nocturno",
+            "manager": "Gerente",
+            "assistantManager": "Gerente Asistente",
+            "securityGuard": "Guardia de Seguridad"
+        },
+        "actions": {
+            "create": "Crear Empleado",
+            "update": "Actualizar Empleado",
+            "terminate": "Terminar Empleado",
+            "view": "Ver Empleado",
+            "search": "Buscar Empleados",
+            "export": "Exportar Datos"
+        },
+        "labels": {
+            "employeeList": "Lista de Empleados",
+            "employeeDetails": "Detalles del Empleado",
+            "personalInformation": "Información Personal",
+            "employmentInformation": "Información de Empleo",
+            "contactInformation": "Información de Contacto",
+            "emergencyContact": "Contacto de Emergencia",
+            "workSchedule": "Horario de Trabajo",
+            "documents": "Documentos",
+            "terminationDetails": "Detalles de Terminación"
+        },
+        "placeholders": {
+            "searchEmployees": "Buscar por nombre, correo o ID de empleado...",
+            "selectDepartment": "Seleccionar Departamento",
+            "selectPosition": "Seleccionar Puesto",
+            "enterEmployeeId": "Ingresar ID de Empleado",
+            "enterEmail": "Ingresar correo electrónico",
+            "enterPhone": "Ingresar número de teléfono"
+        },
+        "validation": {
+            "required": "Este campo es obligatorio",
+            "invalidEmail": "Por favor ingrese un correo electrónico válido",
+            "invalidPhone": "Por favor ingrese un número de teléfono válido",
+            "invalidDate": "Por favor ingrese una fecha válida",
+            "invalidHourlyRate": "La tarifa por hora debe ser un número positivo",
+            "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+            "employeeIdFormat": "El ID del empleado debe ser alfanumérico"
+        }
+    },
+    "forms": {
+        "errors": {
+            "notFound": "Formulario no encontrado",
+            "accessDenied": "Acceso denegado",
+            "validationFailed": "Validación del formulario falló",
+            "generationFailed": "Error al generar formulario",
+            "retrievalFailed": "Error al recuperar formulario",
+            "updateFailed": "Error al actualizar formulario",
+            "validationError": "Error al validar formulario",
+            "submitFailed": "Error al enviar formulario",
+            "approveFailed": "Error al aprobar formulario",
+            "rejectFailed": "Error al rechazar formulario",
+            "pdfGenerationFailed": "Error al generar PDF",
+            "formRetrievalFailed": "Error al recuperar formularios",
+            "suggestionsFailed": "Error al obtener sugerencias",
+            "mustBeSubmittedForApproval": "El formulario debe ser enviado antes de la aprobación",
+            "mustBeSubmittedForRejection": "El formulario debe ser enviado antes del rechazo"
+        },
+        "messages": {
+            "submitSuccess": "Formulario enviado exitosamente",
+            "approveSuccess": "Formulario aprobado exitosamente",
+            "rejectSuccess": "Formulario rechazado",
+            "validationError": "Error de validación",
+            "authenticationRequired": "Se requiere autenticación",
+            "insufficientPermissions": "Permisos insuficientes"
+        },
+        "status": {
+            "draft": "Borrador",
+            "inProgress": "En Progreso",
+            "completed": "Completado",
+            "submitted": "Enviado",
+            "approved": "Aprobado",
+            "rejected": "Rechazado"
+        },
+        "i9": {
+            "title": "Verificación de Elegibilidad de Empleo (Formulario I-9)",
+            "section1": {
+                "title": "Información del Empleado y Certificación",
+                "lastName": "Apellido (Nombre de Familia)",
+                "firstName": "Nombre (Nombre de Pila)",
+                "middleInitial": "Inicial del Segundo Nombre",
+                "otherLastNames": "Otros Apellidos Utilizados",
+                "address": "Dirección (Número y Nombre de la Calle)",
+                "aptNumber": "Número de Apartamento",
+                "city": "Ciudad o Pueblo",
+                "state": "Estado",
+                "zipCode": "Código Postal",
+                "dateOfBirth": "Fecha de Nacimiento",
+                "ssn": "Número de Seguro Social de EE.UU.",
+                "email": "Correo Electrónico del Empleado",
+                "phone": "Número de Teléfono del Empleado",
+                "citizenshipStatus": "Estoy consciente de que la ley federal prevé prisión y/o multas por declaraciones falsas o uso de documentos falsos en relación con el llenado de este formulario.",
+                "attestation": "Certifico, bajo pena de perjurio, que soy (marque una de las siguientes casillas):",
+                "usCitizen": "Un ciudadano de los Estados Unidos",
+                "nonCitizenNational": "Un nacional no ciudadano de los Estados Unidos",
+                "lprAlien": "Un residente permanente legal",
+                "alienAuthorized": "Un extranjero autorizado para trabajar"
+            },
+            "section2": {
+                "title": "Revisión y Verificación del Empleador o Representante Autorizado",
+                "instructions": "Los empleados deben proporcionar documentación aceptable para establecer identidad y autorización de empleo.",
+                "listA": "Lista A: Documentos que Establecen Tanto Identidad como Autorización de Empleo",
+                "listB": "Lista B: Documentos que Establecen Identidad",
+                "listC": "Lista C: Documentos que Establecen Autorización de Empleo"
+            }
+        },
+        "w4": {
+            "title": "Certificado de Retención del Empleado (Formulario W-4)",
+            "personalInfo": {
+                "firstName": "Nombre y inicial del segundo nombre",
+                "lastName": "Apellido",
+                "address": "Dirección",
+                "city": "Ciudad o pueblo, estado y código postal",
+                "ssn": "Número de seguro social",
+                "filingStatus": "Estado Civil para Efectos Tributarios"
+            },
+            "filingStatus": {
+                "single": "Soltero o Casado presentando por separado",
+                "marriedJoint": "Casado presentando conjuntamente o Viudo(a) calificado(a)",
+                "headOfHousehold": "Cabeza de familia"
+            },
+            "instructions": {
+                "step1": "Ingresar Información Personal",
+                "step2": "Múltiples Trabajos o Cónyuge Trabaja",
+                "step3": "Reclamar Dependientes",
+                "step4": "Otros Ajustes",
+                "step5": "Firmar Aquí"
+            }
+        }
+    },
+    "legal": {
+        "atWillEmployment": "Aviso de Empleo a Voluntad",
+        "atWillText": "El empleo con esta empresa es a voluntad. Tanto el empleado como la empresa pueden terminar la relación laboral en cualquier momento, con o sin causa, y con o sin aviso.",
+        "antiHarassment": "Política Anti-Acoso",
+        "antiHarassmentText": "Esta empresa se compromete a proporcionar un lugar de trabajo libre de acoso basado en raza, color, religión, sexo, origen nacional, edad, discapacidad o cualquier otra característica protegida.",
+        "equalOpportunity": "Igualdad de Oportunidades de Empleo",
+        "equalOpportunityText": "Esta empresa es un empleador de igualdad de oportunidades y no discrimina por motivos de raza, color, religión, sexo, origen nacional, edad, discapacidad o cualquier otra característica protegida."
+    },
+    "onboarding": {
+        "errors": {
+            "employeeNotFound": "Empleado no encontrado",
+            "onboardingSessionAlreadyExists": "Ya existe una sesión de incorporación activa para este empleado",
+            "invalidAccessCode": "Código de acceso inválido",
+            "accessCodeExpired": "El código de acceso ha expirado",
+            "onboardingSessionNotActive": "La sesión de incorporación no está activa",
+            "onboardingSessionNotFound": "Sesión de incorporación no encontrada",
+            "onboardingSessionExpired": "La sesión de incorporación ha expirado",
+            "accessCodeEmployeeMismatch": "El código de acceso no coincide con el empleado especificado",
+            "sessionIdRequired": "Se requiere ID de sesión",
+            "invalidEmployeeId": "Formato de ID de empleado inválido",
+            "accessCodeTooShort": "El código de acceso debe tener al menos 6 caracteres",
+            "additionalHoursRequired": "Las horas adicionales deben ser un número positivo"
+        },
+        "success": {
+            "sessionCreated": "Sesión de incorporación creada exitosamente",
+            "progressUpdated": "Progreso de incorporación actualizado exitosamente",
+            "sessionCompleted": "Incorporación completada exitosamente",
+            "sessionCancelled": "Sesión de incorporación cancelada",
+            "sessionExtended": "Sesión de incorporación extendida exitosamente",
+            "onboardingStarted": "Incorporación iniciada exitosamente",
+            "onboardingSubmitted": "Incorporación enviada para revisión"
+        },
+        "status": {
+            "inProgress": "En Progreso",
+            "completed": "Completado",
+            "expired": "Expirado",
+            "cancelled": "Cancelado"
+        },
+        "steps": {
+            "languageSelection": "Selección de Idioma",
+            "personalInfo": "Información Personal",
+            "documentUpload": "Carga de Documentos",
+            "formCompletion": "Completar Formularios",
+            "digitalSignature": "Firma Digital",
+            "review": "Revisión",
+            "completed": "Completado"
+        },
+        "labels": {
+            "accessCode": "Código de Acceso",
+            "languagePreference": "Preferencia de Idioma",
+            "currentStep": "Paso Actual",
+            "progress": "Progreso",
+            "expiresAt": "Expira En",
+            "completedAt": "Completado En",
+            "sessionDetails": "Detalles de la Sesión",
+            "onboardingProgress": "Progreso de Incorporación"
+        },
+        "actions": {
+            "createSession": "Crear Sesión de Incorporación",
+            "validateCode": "Validar Código de Acceso",
+            "updateProgress": "Actualizar Progreso",
+            "completeSession": "Completar Incorporación",
+            "cancelSession": "Cancelar Sesión",
+            "extendSession": "Extender Sesión"
+        }
+    },
+    "upload": {
+        "errors": {
+            "documentTypeAndEmployeeRequired": "Se requiere el tipo de documento y el ID del empleado",
+            "documentTypeRequired": "Se requiere el tipo de documento",
+            "invalidDocumentType": "Tipo de documento inválido: {documentType}",
+            "unsupportedFileType": "El tipo de archivo {mimeType} no es compatible con documentos de {documentType}. Tipos permitidos: {allowedTypes}",
+            "fileTooLarge": "El tamaño del archivo excede el límite de {maxSize} para documentos de {documentType}",
+            "uploadFailed": "Error al cargar el archivo",
+            "directoryCreationFailed": "Error al crear el directorio de almacenamiento",
+            "fileProcessingError": "Error al procesar el archivo cargado"
+        },
+        "documentTypes": {
+            "ssn": "Tarjeta de Seguro Social",
+            "drivers_license": "Licencia de Conducir",
+            "i9": "Formulario I-9",
+            "w4": "Formulario W-4",
+            "handbook": "Manual del Empleado",
+            "policy": "Política de la Empresa",
+            "experience_letter": "Carta de Experiencia Laboral",
+            "other": "Otro Documento"
+        },
+        "labels": {
+            "selectFile": "Seleccionar Archivo",
+            "dragDropHere": "Arrastra y suelta archivos aquí",
+            "supportedFormats": "Formatos compatibles",
+            "maxFileSize": "Tamaño máximo de archivo",
+            "uploadProgress": "Progreso de Carga",
+            "uploadComplete": "Carga Completa",
+            "uploadInProgress": "Cargando...",
+            "fileSelected": "Archivo Seleccionado",
+            "removeFile": "Eliminar Archivo"
+        },
+        "instructions": {
+            "i9Requirements": "Por favor cargue una copia clara y legible de su Formulario I-9 completado. Ambos lados deben ser visibles si usa una copia física.",
+            "w4Requirements": "Cargue su formulario W-4 completado. Asegúrese de que todos los campos requeridos estén llenos y el formulario esté firmado.",
+            "ssnRequirements": "Cargue una foto clara o escaneo de su tarjeta de Seguro Social. Asegúrese de que todos los números sean claramente visibles.",
+            "driversLicenseRequirements": "Cargue tanto el frente como el reverso de su licencia de conducir. Todo el texto debe ser claramente legible.",
+            "handbookRequirements": "Este es su manual del empleado. Por favor revise y confirme la recepción.",
+            "policyRequirements": "Por favor revise este documento de política de la empresa cuidadosamente.",
+            "experienceLetterInfo": "Esta es su carta de experiencia laboral para sus registros."
+        }
+    },
+    "schedule": {
+        "notification": {
+            "subject": "Actualización de Horario",
+            "scheduleChanged": "Tu horario ha sido actualizado",
+            "details": "Aquí están los detalles de tu horario actualizado:",
+            "loginToView": "Por favor inicia sesión en el portal de empleados para ver tu horario completo.",
+            "reversion": {
+                "subject": "Aviso de Reversión de Horario",
+                "message": "Tu horario temporal ha terminado",
+                "details": "Tu horario temporal para las siguientes fechas ha terminado y tu horario regular está ahora en efecto:"
+            }
+        },
+        "dayOff": "Día Libre",
+        "errors": {
+            "scheduleConflict": "Se detectó un conflicto de horario",
+            "scheduleNotFound": "Entrada de horario no encontrada",
+            "invalidTimeFormat": "Formato de hora inválido. Por favor usa el formato HH:MM",
+            "endTimeBeforeStartTime": "La hora de finalización no puede ser antes de la hora de inicio",
+            "invalidBreakDuration": "La duración del descanso debe ser menor que la duración del turno",
+            "insufficientPermissions": "No tienes permiso para administrar este horario",
+            "effectiveUntilBeforeFrom": "La fecha de finalización debe ser posterior a la fecha de inicio"
+        },
+        "success": {
+            "scheduleCreated": "Horario creado exitosamente",
+            "scheduleUpdated": "Horario actualizado exitosamente",
+            "scheduleDeleted": "Horario eliminado exitosamente"
+        },
+        "labels": {
+            "weeklySchedule": "Horario Semanal",
+            "temporarySchedule": "Horario Temporal",
+            "startTime": "Hora de Inicio",
+            "endTime": "Hora de Finalización",
+            "breakDuration": "Duración del Descanso",
+            "isWorkDay": "Día Laboral",
+            "effectiveFrom": "Efectivo Desde",
+            "effectiveUntil": "Efectivo Hasta",
+            "scheduleType": "Tipo de Horario",
+            "notes": "Notas",
+            "currentWeek": "Semana Actual",
+            "nextWeek": "Próxima Semana"
+        },
+        "days": {
+            "monday": "Lunes",
+            "tuesday": "Martes",
+            "wednesday": "Miércoles",
+            "thursday": "Jueves",
+            "friday": "Viernes",
+            "saturday": "Sábado",
+            "sunday": "Domingo"
+        },
+        "scheduleType": {
+            "regular": "Regular",
+            "temporary": "Temporal"
+        }
+    },
+    "common": {
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "submit": "Enviar",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "confirm": "Confirmar",
+        "yes": "Sí",
+        "no": "No",
+        "loading": "Cargando...",
+        "error": "Error",
+        "success": "Éxito",
+        "warning": "Advertencia",
+        "info": "Información",
+        "errors": {
+            "validation": "Error de validación",
+            "unexpected": "Ocurrió un error inesperado",
+            "searchQueryRequired": "Se requiere consulta de búsqueda",
+            "organizationIdRequired": "Se requiere ID de organización",
+            "authenticationRequired": "Se requiere autenticación"
+        },
+        "notifications": {
+            "connected": "Conectado",
+            "connectedMessage": "Ahora estás conectado para recibir notificaciones en tiempo real",
+            "newMessage": "Nuevo Mensaje",
+            "newAnnouncement": "Nuevo Anuncio",
+            "messageFrom": "Mensaje de {senderName}",
+            "announcementTitle": "Nuevo anuncio: {title}",
+            "types": {
+                "message": "Mensaje",
+                "announcement": "Anuncio",
+                "schedule": "Horario",
+                "system": "Sistema"
+            }
+        }
+    }
+}

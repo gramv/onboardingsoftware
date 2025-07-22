@@ -1,0 +1,393 @@
+{
+  "employee": {
+    "errors": {
+      "employeeIdExists": "Employee ID already exists",
+      "emailExists": "Email already exists",
+      "employeeNotFound": "Employee not found",
+      "invalidManagerRating": "Manager rating must be between 1 and 5",
+      "cannotCreateDifferentOrg": "Cannot create employee in different organization",
+      "insufficientPermissionsCreate": "Insufficient permissions to create employee",
+      "insufficientPermissionsView": "Insufficient permissions to view employee",
+      "insufficientPermissionsUpdate": "Insufficient permissions to update employee",
+      "insufficientPermissionsTerminate": "Insufficient permissions to terminate employee",
+      "insufficientPermissionsStats": "Insufficient permissions to view organization statistics",
+      "insufficientPermissionsAlumni": "Insufficient permissions to view alumni"
+    },
+    "success": {
+      "employeeCreated": "Employee created successfully",
+      "employeeUpdated": "Employee updated successfully",
+      "employeeTerminated": "Employee terminated successfully"
+    },
+    "fields": {
+      "employeeId": "Employee ID",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "position": "Position",
+      "department": "Department",
+      "hourlyRate": "Hourly Rate",
+      "hireDate": "Hire Date",
+      "dateOfBirth": "Date of Birth",
+      "emergencyContact": "Emergency Contact",
+      "address": "Address",
+      "languagePreference": "Language Preference"
+    },
+    "status": {
+      "active": "Active",
+      "terminated": "Terminated",
+      "onLeave": "On Leave"
+    },
+    "departments": {
+      "reception": "Reception",
+      "housekeeping": "Housekeeping",
+      "maintenance": "Maintenance",
+      "facilities": "Facilities",
+      "management": "Management",
+      "security": "Security"
+    },
+    "positions": {
+      "frontDeskClerk": "Front Desk Clerk",
+      "housekeeper": "Housekeeper",
+      "maintenanceWorker": "Maintenance Worker",
+      "nightAuditor": "Night Auditor",
+      "manager": "Manager",
+      "assistantManager": "Assistant Manager",
+      "securityGuard": "Security Guard"
+    },
+    "actions": {
+      "create": "Create Employee",
+      "update": "Update Employee",
+      "terminate": "Terminate Employee",
+      "view": "View Employee",
+      "search": "Search Employees",
+      "export": "Export Data"
+    },
+    "labels": {
+      "employeeList": "Employee List",
+      "employeeDetails": "Employee Details",
+      "personalInformation": "Personal Information",
+      "employmentInformation": "Employment Information",
+      "contactInformation": "Contact Information",
+      "emergencyContact": "Emergency Contact",
+      "workSchedule": "Work Schedule",
+      "documents": "Documents",
+      "terminationDetails": "Termination Details"
+    },
+    "placeholders": {
+      "searchEmployees": "Search by name, email, or employee ID...",
+      "selectDepartment": "Select Department",
+      "selectPosition": "Select Position",
+      "enterEmployeeId": "Enter Employee ID",
+      "enterEmail": "Enter email address",
+      "enterPhone": "Enter phone number"
+    },
+    "validation": {
+      "required": "This field is required",
+      "invalidEmail": "Please enter a valid email address",
+      "invalidPhone": "Please enter a valid phone number",
+      "invalidDate": "Please enter a valid date",
+      "invalidHourlyRate": "Hourly rate must be a positive number",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "employeeIdFormat": "Employee ID must be alphanumeric"
+    }
+  },
+  "forms": {
+    "errors": {
+      "notFound": "Form not found",
+      "accessDenied": "Access denied",
+      "validationFailed": "Form validation failed",
+      "generationFailed": "Failed to generate form",
+      "retrievalFailed": "Failed to retrieve form",
+      "updateFailed": "Failed to update form",
+      "validationError": "Failed to validate form",
+      "submitFailed": "Failed to submit form",
+      "approveFailed": "Failed to approve form",
+      "rejectFailed": "Failed to reject form",
+      "pdfGenerationFailed": "Failed to generate PDF",
+      "formRetrievalFailed": "Failed to retrieve forms",
+      "suggestionsFailed": "Failed to get suggestions",
+      "mustBeSubmittedForApproval": "Form must be submitted before approval",
+      "mustBeSubmittedForRejection": "Form must be submitted before rejection"
+    },
+    "messages": {
+      "submitSuccess": "Form submitted successfully",
+      "approveSuccess": "Form approved successfully",
+      "rejectSuccess": "Form rejected",
+      "validationError": "Validation error",
+      "authenticationRequired": "Authentication required",
+      "insufficientPermissions": "Insufficient permissions"
+    },
+    "status": {
+      "draft": "Draft",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "i9": {
+      "title": "Employment Eligibility Verification (Form I-9)",
+      "section1": {
+        "title": "Employee Information and Attestation",
+        "lastName": "Last Name (Family Name)",
+        "firstName": "First Name (Given Name)",
+        "middleInitial": "Middle Initial",
+        "otherLastNames": "Other Last Names Used",
+        "address": "Address (Street Number and Name)",
+        "aptNumber": "Apt. Number",
+        "city": "City or Town",
+        "state": "State",
+        "zipCode": "ZIP Code",
+        "dateOfBirth": "Date of Birth",
+        "ssn": "U.S. Social Security Number",
+        "email": "Employee's Email Address",
+        "phone": "Employee's Telephone Number",
+        "citizenshipStatus": "I am aware that federal law provides for imprisonment and/or fines for false statements or use of false documents in connection with the completion of this form.",
+        "attestation": "I attest, under penalty of perjury, that I am (check one of the following boxes):",
+        "usCitizen": "A citizen of the United States",
+        "nonCitizenNational": "A noncitizen national of the United States",
+        "lprAlien": "A lawful permanent resident",
+        "alienAuthorized": "An alien authorized to work"
+      },
+      "section2": {
+        "title": "Employer or Authorized Representative Review and Verification",
+        "instructions": "Employees must provide acceptable documentation to establish identity and employment authorization.",
+        "listA": "List A: Documents that Establish Both Identity and Employment Authorization",
+        "listB": "List B: Documents that Establish Identity",
+        "listC": "List C: Documents that Establish Employment Authorization"
+      }
+    },
+    "w4": {
+      "title": "Employee's Withholding Certificate (Form W-4)",
+      "personalInfo": {
+        "firstName": "First name and middle initial",
+        "lastName": "Last name",
+        "address": "Address",
+        "city": "City or town, state, and ZIP code",
+        "ssn": "Social security number",
+        "filingStatus": "Filing Status"
+      },
+      "filingStatus": {
+        "single": "Single or Married filing separately",
+        "marriedJoint": "Married filing jointly or Qualifying widow(er)",
+        "headOfHousehold": "Head of household"
+      },
+      "instructions": {
+        "step1": "Enter Personal Information",
+        "step2": "Multiple Jobs or Spouse Works",
+        "step3": "Claim Dependents",
+        "step4": "Other Adjustments",
+        "step5": "Sign Here"
+      }
+    }
+  },
+  "legal": {
+    "atWillEmployment": "At-Will Employment Notice",
+    "atWillText": "Employment with this company is at-will. Either the employee or the company may terminate the employment relationship at any time, with or without cause, and with or without notice.",
+    "antiHarassment": "Anti-Harassment Policy",
+    "antiHarassmentText": "This company is committed to providing a workplace free from harassment based on race, color, religion, sex, national origin, age, disability, or any other protected characteristic.",
+    "equalOpportunity": "Equal Employment Opportunity",
+    "equalOpportunityText": "This company is an equal opportunity employer and does not discriminate on the basis of race, color, religion, sex, national origin, age, disability, or any other protected characteristic."
+  },
+  "onboarding": {
+    "errors": {
+      "employeeNotFound": "Employee not found",
+      "onboardingSessionAlreadyExists": "An active onboarding session already exists for this employee",
+      "invalidToken": "Invalid token",
+      "tokenExpired": "Token has expired",
+      "onboardingSessionNotActive": "Onboarding session is not active",
+      "onboardingSessionNotFound": "Onboarding session not found",
+      "onboardingSessionExpired": "Onboarding session has expired",
+      "tokenEmployeeMismatch": "Token does not match the specified employee",
+      "sessionIdRequired": "Session ID is required",
+      "invalidEmployeeId": "Invalid employee ID format",
+      "tokenTooShort": "Token must be at least 6 characters",
+      "additionalHoursRequired": "Additional hours must be a positive number"
+    },
+    "success": {
+      "sessionCreated": "Onboarding session created successfully",
+      "progressUpdated": "Onboarding progress updated successfully",
+      "sessionCompleted": "Onboarding completed successfully",
+      "sessionCancelled": "Onboarding session cancelled",
+      "sessionExtended": "Onboarding session extended successfully",
+      "onboardingStarted": "Onboarding started successfully",
+      "onboardingSubmitted": "Onboarding submitted for review"
+    },
+    "notifications": {
+      "completedTitle": "Onboarding Completed: {{employeeName}}",
+      "completedMessage": "{{employeeName}} has completed their onboarding process at {{organizationName}}. Please review and approve their submission.",
+      "approvedTitle": "Onboarding Approved: {{employeeName}}",
+      "approvedMessage": "{{employeeName}}'s onboarding has been approved and sent to HR for final processing.",
+      "rejectedTitle": "Onboarding Rejected: {{employeeName}}",
+      "rejectedMessage": "{{employeeName}}'s onboarding has been rejected. The employee has been notified to make corrections."
+    },
+    "status": {
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "steps": {
+      "languageSelection": "Language Selection",
+      "personalInfo": "Personal Information",
+      "documentUpload": "Document Upload",
+      "formCompletion": "Form Completion",
+      "digitalSignature": "Digital Signature",
+      "review": "Review",
+      "completed": "Completed"
+    },
+    "labels": {
+      "token": "Token",
+      "languagePreference": "Language Preference",
+      "currentStep": "Current Step",
+      "progress": "Progress",
+      "expiresAt": "Expires At",
+      "completedAt": "Completed At",
+      "sessionDetails": "Session Details",
+      "onboardingProgress": "Onboarding Progress"
+    },
+    "actions": {
+      "createSession": "Create Onboarding Session",
+      "validateToken": "Validate Token",
+      "updateProgress": "Update Progress",
+      "completeSession": "Complete Onboarding",
+      "cancelSession": "Cancel Session",
+      "extendSession": "Extend Session"
+    }
+  },
+  "upload": {
+    "errors": {
+      "documentTypeAndEmployeeRequired": "Document type and employee ID are required",
+      "documentTypeRequired": "Document type is required",
+      "invalidDocumentType": "Invalid document type: {documentType}",
+      "unsupportedFileType": "File type {mimeType} is not supported for {documentType} documents. Allowed types: {allowedTypes}",
+      "fileTooLarge": "File size exceeds the limit of {maxSize} for {documentType} documents",
+      "uploadFailed": "File upload failed",
+      "directoryCreationFailed": "Failed to create storage directory",
+      "fileProcessingError": "Error processing uploaded file"
+    },
+    "documentTypes": {
+      "ssn": "Social Security Card",
+      "drivers_license": "Driver's License",
+      "i9": "Form I-9",
+      "w4": "Form W-4",
+      "handbook": "Employee Handbook",
+      "policy": "Company Policy",
+      "experience_letter": "Experience Letter",
+      "other": "Other Document"
+    },
+    "labels": {
+      "selectFile": "Select File",
+      "dragDropHere": "Drag and drop files here",
+      "supportedFormats": "Supported formats",
+      "maxFileSize": "Maximum file size",
+      "uploadProgress": "Upload Progress",
+      "uploadComplete": "Upload Complete",
+      "uploadInProgress": "Uploading...",
+      "fileSelected": "File Selected",
+      "removeFile": "Remove File"
+    },
+    "instructions": {
+      "i9Requirements": "Please upload a clear, legible copy of your completed Form I-9. Both sides must be visible if using a physical copy.",
+      "w4Requirements": "Upload your completed W-4 form. Ensure all required fields are filled out and the form is signed.",
+      "ssnRequirements": "Upload a clear photo or scan of your Social Security card. Ensure all numbers are clearly visible.",
+      "driversLicenseRequirements": "Upload both front and back of your driver's license. All text must be clearly readable.",
+      "handbookRequirements": "This is your employee handbook. Please review and acknowledge receipt.",
+      "policyRequirements": "Please review this company policy document carefully.",
+      "experienceLetterInfo": "This is your employment experience letter for your records."
+    }
+  },
+
+  "schedule": {
+    "notification": {
+      "subject": "Schedule Update",
+      "scheduleChanged": "Your schedule has been updated",
+      "details": "Here are the details of your updated schedule:",
+      "loginToView": "Please log in to the employee portal to view your complete schedule.",
+      "reversion": {
+        "subject": "Schedule Reversion Notice",
+        "message": "Your temporary schedule has ended",
+        "details": "Your temporary schedule for the following dates has ended and your regular schedule is now in effect:"
+      }
+    },
+    "dayOff": "Day Off",
+    "errors": {
+      "scheduleConflict": "Schedule conflict detected",
+      "scheduleNotFound": "Schedule entry not found",
+      "invalidTimeFormat": "Invalid time format. Please use HH:MM format",
+      "endTimeBeforeStartTime": "End time cannot be before start time",
+      "invalidBreakDuration": "Break duration must be less than shift duration",
+      "insufficientPermissions": "You do not have permission to manage this schedule",
+      "effectiveUntilBeforeFrom": "Effective until date must be after effective from date"
+    },
+    "success": {
+      "scheduleCreated": "Schedule created successfully",
+      "scheduleUpdated": "Schedule updated successfully",
+      "scheduleDeleted": "Schedule deleted successfully"
+    },
+    "labels": {
+      "weeklySchedule": "Weekly Schedule",
+      "temporarySchedule": "Temporary Schedule",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "breakDuration": "Break Duration",
+      "isWorkDay": "Work Day",
+      "effectiveFrom": "Effective From",
+      "effectiveUntil": "Effective Until",
+      "scheduleType": "Schedule Type",
+      "notes": "Notes",
+      "currentWeek": "Current Week",
+      "nextWeek": "Next Week"
+    },
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "scheduleType": {
+      "regular": "Regular",
+      "temporary": "Temporary"
+    }
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "errors": {
+      "validation": "Validation error",
+      "unexpected": "An unexpected error occurred",
+      "searchQueryRequired": "Search query is required",
+      "organizationIdRequired": "Organization ID is required",
+      "authenticationRequired": "Authentication required"
+    },
+    "notifications": {
+      "connected": "Connected",
+      "connectedMessage": "You are now connected to receive real-time notifications",
+      "newMessage": "New Message",
+      "newAnnouncement": "New Announcement",
+      "messageFrom": "Message from {senderName}",
+      "announcementTitle": "New announcement: {title}",
+      "types": {
+        "message": "Message",
+        "announcement": "Announcement",
+        "schedule": "Schedule",
+        "system": "System"
+      }
+    }
+  }
+}

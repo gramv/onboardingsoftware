@@ -162,14 +162,13 @@ export const onboardingService = {
       }>('/onboarding/validate-token', 'POST', { token }, { skipAuth: true });
       
       // Extract the actual data from the nested response structure
-      const actualData = response.data || response;
       const result = {
-        session: actualData.session,
-        employee: actualData.employee
+        session: response.session,
+        employee: response.employee
       };
       
       sessionCache.set(cacheKey, result, 300000); // 5 minute cache
-      return result;
+      return { success: true, data: result };
     }, DEFAULT_RETRY_CONFIG, 'validateToken');
   },
 
@@ -194,11 +193,7 @@ export const onboardingService = {
         languagePreference
       }, { skipAuth: true });
       
-      if (!response.success) {
-        throw new Error(response.data?.message || 'Failed to start onboarding');
-      }
-      
-      return response.data;
+      return response;
     }, DEFAULT_RETRY_CONFIG, 'startOnboarding');
   },
 
@@ -208,34 +203,31 @@ export const onboardingService = {
     const cached = sessionCache.get(cacheKey);
     if (cached) return { success: true, data: cached };
 
-    return retryWithBackoff(async () => {
+    try {
       const response = await apiCall<{ session: OnboardingSession }>(`/onboarding/session/${sessionId}`, 'GET', undefined, { skipAuth: true });
       
-      if (!response.success) {
-        throw new Error(response.data?.message || 'Failed to get session');
-      }
-      
-      sessionCache.set(cacheKey, response, 60000); // 1 minute cache
-      return response.data;
-    }, DEFAULT_RETRY_CONFIG, 'getSession');
+      const sessionData = { session: response.session };
+      sessionCache.set(cacheKey, sessionData, 60000);
+      return { success: true, data: sessionData };
+    } catch (error) {
+      return handleServiceError(error, 'getSession');
+    }
   },
 
   // Update onboarding progress with retry
   updateProgress: async (token: string, data: { currentStep?: string; formData?: any; languagePreference?: string }): Promise<ServiceResponse<{ session: OnboardingSession }>> => {
-    return retryWithBackoff(async () => {
+    try {
       const response = await apiCall<{ session: OnboardingSession }>('/onboarding/update-progress', 'PUT', { 
         token, 
         ...data 
       }, { skipAuth: true });
       
-      if (!response.success) {
-        throw new Error(response.data?.message || 'Failed to update progress');
-      }
-      
-      // Clear cached session to force refresh
       sessionCache.clear(`session-${token}`);
-      return response.data;
-    }, DEFAULT_RETRY_CONFIG, 'updateProgress');
+      const sessionData = { session: response.session };
+      return { success: true, data: sessionData };
+    } catch (error) {
+      return handleServiceError(error, 'updateProgress');
+    }
   },
 
   // Submit onboarding forms with orchestration

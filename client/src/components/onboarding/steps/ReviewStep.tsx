@@ -22,6 +22,7 @@ interface ReviewStepProps {
   onSigned: (signature: any) => void;
   onBack: () => void;
   deviceType?: 'tablet' | 'mobile' | 'desktop';
+  sessionData?: any;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -32,7 +33,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   forms,
   onSigned,
   onBack,
-  deviceType = 'desktop'
+  deviceType = 'desktop',
+  sessionData
 }) => {
   const [currentView, setCurrentView] = useState<'review' | 'signature'>('review');
 
@@ -96,7 +98,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   };
 
   // Prepare forms data for signature component
-  const formsForSignature = [];
+  const formsForSignature: Array<{type: 'i9' | 'w4', data: any}> = [];
   if (forms?.i9Data) {
     formsForSignature.push({ type: 'i9' as const, data: forms.i9Data });
   }
@@ -196,6 +198,39 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 <span className="text-sm text-gray-500">Completed</span>
               </div>
             ))}
+            
+            {/* Emergency Contact Review */}
+            {sessionData?.emergencyContact && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <Icon name="Heart" size={20} className="text-green-600 mr-3" />
+                  <span className="font-medium">Emergency Contact Information</span>
+                </div>
+                <span className="text-sm text-gray-500">Completed</span>
+              </div>
+            )}
+            
+            {/* Direct Deposit Review */}
+            {sessionData?.directDeposit && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <Icon name="CreditCard" size={20} className="text-green-600 mr-3" />
+                  <span className="font-medium">Direct Deposit Setup</span>
+                </div>
+                <span className="text-sm text-gray-500">Completed</span>
+              </div>
+            )}
+            
+            {/* Health Insurance Review */}
+            {sessionData?.healthInsurance && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <Icon name="Shield" size={20} className="text-green-600 mr-3" />
+                  <span className="font-medium">Health Insurance Selection</span>
+                </div>
+                <span className="text-sm text-gray-500">Completed</span>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-gray-500 italic">{currentT.noForms}</p>
@@ -218,4 +253,4 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
       </div>
     </div>
   );
-}; 
+};        

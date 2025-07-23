@@ -122,7 +122,7 @@ router.put('/update-progress', async (req, res) => {
       where: { token },
       data: {
         currentStep,
-        formData: formData || {},
+        formData: JSON.stringify(formData || {}),
         updatedAt: new Date()
       }
     });
@@ -167,7 +167,7 @@ router.post('/complete', async (req, res) => {
       data: {
         status: 'completed',
         completedAt: new Date(),
-        formData: finalData || {}
+        formData: JSON.stringify(finalData || {})
       }
     });
 

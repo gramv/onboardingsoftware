@@ -4,10 +4,9 @@ import { Layout } from './components/layout';
 import { HRDashboard } from './pages/HRDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
 import { EmployeeDashboard } from './pages/EmployeeDashboard';
-import { EmployeeCreate } from './pages/EmployeeCreate';
 import { EmployeeCreationWorkflow } from './components/hr/EmployeeCreationWorkflow';
 import TabletOnboarding from './pages/TabletOnboarding';
-import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
@@ -99,7 +98,7 @@ function App() {
         <Route path="/auth/registration-success" element={<RegistrationSuccess />} />
         
         {/* Modern Onboarding Route - Public */}
-        <Route path="/onboarding" element={<OnboardingFlow />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         
         {/* Tablet Onboarding Route - Public (for walk-in onboarding) */}
         <Route path="/onboarding/tablet" element={<TabletOnboarding />} />
@@ -123,7 +122,7 @@ function App() {
                   <Route path="/manager-dashboard" element={<ManagerDashboard />} />
                   <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
                   <Route path="/employees/create" element={<EmployeeCreationWorkflow />} />
-                  <Route path="/manager/onboarding/walkin" element={React.lazy(() => import('./pages/manager/WalkInOnboardingPage'))} />
+                  <Route path="/manager/onboarding/walkin" element={<div>Walk-in Onboarding (Coming Soon)</div>} />
                   {/* Placeholder routes - will be implemented in future tasks */}
                   <Route path="/employees" element={<div>Employees Page (Coming Soon)</div>} />
                   <Route path="/scheduling" element={<div>Scheduling Page (Coming Soon)</div>} />

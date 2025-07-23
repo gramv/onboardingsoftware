@@ -7,18 +7,20 @@ import { Badge } from '../ui/Badge';
 import { useToast } from '../../hooks/useToast';
 import { useLanguage } from '../../hooks/useLanguage';
 import { onboardingService } from '../../services/onboardingService';
-import {
-  WelcomeStep,
-  DocumentUploadStep,
-  FormCompletionStep,
-  ReviewStep,
-  CompletionStep
-} from './steps';
+import { WelcomeStep } from './steps/WelcomeStep';
+import { DocumentUploadStep } from './steps/DocumentUploadStep';
+import { FormCompletionStep } from './steps/FormCompletionStep';
+import { EmergencyContactStep } from './steps/EmergencyContactStep';
+import { DirectDepositStep } from './steps/DirectDepositStep';
+import { HealthInsuranceStep } from './steps/HealthInsuranceStep';
+import { ReviewStep } from './steps/ReviewStep';
+import { CompletionStep } from './steps/CompletionStep';
 
 interface OnboardingData {
   sessionId: string;
   accessCode: string;
   employee: {
+    id?: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -32,6 +34,22 @@ interface OnboardingData {
   forms: {
     i9Data?: any;
     w4Data?: any;
+  };
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  directDeposit?: {
+    accountType: 'checking' | 'savings';
+    routingNumber: string;
+    accountNumber: string;
+    bankName: string;
+  };
+  healthInsurance?: {
+    selectedPlan: string;
+    dependents: number;
+    totalMonthlyPremium: number;
   };
   signature?: {
     signatureBase64: string;
@@ -76,6 +94,33 @@ const ONBOARDING_STEPS: Step[] = [
     descriptionEs: 'Complete los formularios I-9 y W-4',
     icon: 'FileText',
     estimatedMinutes: 10
+  },
+  {
+    id: 'emergency-contact',
+    title: 'Emergency Contact',
+    titleEs: 'Contacto de Emergencia',
+    description: 'Provide emergency contact information',
+    descriptionEs: 'Proporcione información de contacto de emergencia',
+    icon: 'Heart',
+    estimatedMinutes: 3
+  },
+  {
+    id: 'direct-deposit',
+    title: 'Direct Deposit',
+    titleEs: 'Depósito Directo',
+    description: 'Set up direct deposit for payroll',
+    descriptionEs: 'Configure el depósito directo para la nómina',
+    icon: 'CreditCard',
+    estimatedMinutes: 5
+  },
+  {
+    id: 'health-insurance',
+    title: 'Health Insurance',
+    titleEs: 'Seguro de Salud',
+    description: 'Select your health insurance plan',
+    descriptionEs: 'Seleccione su plan de seguro de salud',
+    icon: 'Shield',
+    estimatedMinutes: 7
   },
   {
     id: 'review',
@@ -142,7 +187,7 @@ export const OnboardingFlow: React.FC = () => {
         if (result.success && result.data && result.data.session && result.data.employee) {
           setOnboardingData({
             sessionId: result.data.session.id,
-            accessCode: result.data.session.accessCode || result.data.session.token || authParam,
+            accessCode: (result.data.session as any).accessCode || (result.data.session as any).token || authParam,
             employee: {
               firstName: result.data.employee.firstName || result.data.employee.name?.split(' ')[0] || '',
               lastName: result.data.employee.lastName || result.data.employee.name?.split(' ').slice(1).join(' ') || '',
@@ -151,14 +196,14 @@ export const OnboardingFlow: React.FC = () => {
               department: result.data.employee.department || '',
               organizationName: result.data.employee.organizationName || ''
             },
-            language: result.data.session.languagePreference || currentLanguage,
+            language: (result.data.session.languagePreference === 'en' || result.data.session.languagePreference === 'es') ? result.data.session.languagePreference : currentLanguage,
             documents: [],
             ocrData: {},
             forms: {},
           });
 
           // Set language from session if available, otherwise keep current language
-          const sessionLanguage = result.data.session.languagePreference || currentLanguage;
+          const sessionLanguage = (result.data.session.languagePreference === 'en' || result.data.session.languagePreference === 'es') ? result.data.session.languagePreference : currentLanguage;
           if (sessionLanguage !== currentLanguage) {
             changeLanguage(sessionLanguage);
           }
@@ -171,10 +216,16 @@ export const OnboardingFlow: React.FC = () => {
             setCurrentStep(1);
           } else if (sessionStep === 'forms' || sessionStep === 'form-completion') {
             setCurrentStep(2);
-          } else if (sessionStep === 'review' || sessionStep === 'signature') {
+          } else if (sessionStep === 'emergency-contact') {
             setCurrentStep(3);
-          } else if (sessionStep === 'complete' || sessionStep === 'completed') {
+          } else if (sessionStep === 'direct-deposit') {
             setCurrentStep(4);
+          } else if (sessionStep === 'health-insurance') {
+            setCurrentStep(5);
+          } else if (sessionStep === 'review' || sessionStep === 'signature') {
+            setCurrentStep(6);
+          } else if (sessionStep === 'complete' || sessionStep === 'completed') {
+            setCurrentStep(7);
           }
 
         } else {
@@ -213,7 +264,23 @@ export const OnboardingFlow: React.FC = () => {
   }, [currentLanguage, onboardingData?.accessCode]);
 
   const updateOnboardingData = (updates: Partial<OnboardingData>) => {
-    setOnboardingData(prev => prev ? { ...prev, ...updates } : null);
+    setOnboardingData(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      
+      // Update session data on backend
+      if (prev.accessCode) {
+        onboardingService.updateProgress(prev.accessCode, { formData: updates }).then(result => {
+          if (!result.success) {
+            console.warn('Failed to update session data on server:', result.error);
+          }
+        }).catch(error => {
+          console.warn('Failed to update session data on server:', error);
+        });
+      }
+      
+      return updated;
+    });
   };
 
   const nextStep = () => {
@@ -305,7 +372,7 @@ export const OnboardingFlow: React.FC = () => {
           <FormCompletionStep
             sessionId={onboardingData.sessionId}
             language={currentLanguage}
-            employee={onboardingData.employee}
+            employee={{...onboardingData.employee, id: onboardingData.employee.id || onboardingData.sessionId}}
             ocrData={onboardingData.ocrData}
             onFormsCompleted={(forms: any) => {
               updateOnboardingData({ forms });
@@ -316,12 +383,49 @@ export const OnboardingFlow: React.FC = () => {
         );
       case 3:
         return (
+          <EmergencyContactStep
+            onNext={(data) => {
+              updateOnboardingData({ emergencyContact: data });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.emergencyContact}
+            language={currentLanguage}
+          />
+        );
+      case 4:
+        return (
+          <DirectDepositStep
+            onNext={(data) => {
+              updateOnboardingData({ directDeposit: data });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.directDeposit}
+            language={currentLanguage}
+          />
+        );
+      case 5:
+        return (
+          <HealthInsuranceStep
+            onNext={(data) => {
+              updateOnboardingData({ healthInsurance: data });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.healthInsurance}
+            language={currentLanguage}
+          />
+        );
+      case 6:
+        return (
           <ReviewStep
             sessionId={onboardingData.sessionId}
             language={currentLanguage}
             employee={onboardingData.employee}
             documents={onboardingData.documents}
             forms={onboardingData.forms}
+            sessionData={onboardingData}
             onSigned={(signature: any) => {
               updateOnboardingData({ signature });
               nextStep();
@@ -329,7 +433,7 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 4:
+      case 7:
         return (
           <CompletionStep
             language={currentLanguage}
@@ -442,4 +546,4 @@ export const OnboardingFlow: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};            

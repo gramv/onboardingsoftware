@@ -107,6 +107,7 @@ function App() {
         
         {/* Public Job Portal - No authentication required */}
         <Route path="/jobs" element={<PublicJobPortal />} />
+        <Route path="/apply" element={<PublicJobPortal />} />
         
         {/* Root redirect */}
         <Route path="/" element={<RoleBasedRedirect />} />

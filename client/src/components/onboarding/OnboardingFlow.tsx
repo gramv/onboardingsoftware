@@ -10,6 +10,9 @@ import { onboardingService } from '../../services/onboardingService';
 import {
   WelcomeStep,
   DocumentUploadStep,
+  EmergencyContactStep,
+  DirectDepositStep,
+  HealthInsuranceStep,
   FormCompletionStep,
   ReviewStep,
   CompletionStep
@@ -19,6 +22,7 @@ interface OnboardingData {
   sessionId: string;
   accessCode: string;
   employee: {
+    id?: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -67,6 +71,33 @@ const ONBOARDING_STEPS: Step[] = [
     descriptionEs: 'Proporcione sus documentos de identificación',
     icon: 'Upload',
     estimatedMinutes: 5
+  },
+  {
+    id: 'emergency-contact',
+    title: 'Emergency Contact',
+    titleEs: 'Contacto de Emergencia',
+    description: 'Provide emergency contact information',
+    descriptionEs: 'Proporcione información de contacto de emergencia',
+    icon: 'Phone',
+    estimatedMinutes: 3
+  },
+  {
+    id: 'direct-deposit',
+    title: 'Direct Deposit',
+    titleEs: 'Depósito Directo',
+    description: 'Set up direct deposit',
+    descriptionEs: 'Configure el depósito directo',
+    icon: 'CreditCard',
+    estimatedMinutes: 5
+  },
+  {
+    id: 'health-insurance',
+    title: 'Health Insurance',
+    titleEs: 'Seguro de Salud',
+    description: 'Select health insurance plan',
+    descriptionEs: 'Seleccione el plan de seguro de salud',
+    icon: 'Shield',
+    estimatedMinutes: 8
   },
   {
     id: 'forms',
@@ -142,7 +173,7 @@ export const OnboardingFlow: React.FC = () => {
         if (result.success && result.data && result.data.session && result.data.employee) {
           setOnboardingData({
             sessionId: result.data.session.id,
-            accessCode: result.data.session.accessCode || result.data.session.token || authParam,
+            accessCode: result.data.session.token || authParam,
             employee: {
               firstName: result.data.employee.firstName || result.data.employee.name?.split(' ')[0] || '',
               lastName: result.data.employee.lastName || result.data.employee.name?.split(' ').slice(1).join(' ') || '',
@@ -151,14 +182,14 @@ export const OnboardingFlow: React.FC = () => {
               department: result.data.employee.department || '',
               organizationName: result.data.employee.organizationName || ''
             },
-            language: result.data.session.languagePreference || currentLanguage,
+            language: (result.data.session.languagePreference as 'en' | 'es') || currentLanguage,
             documents: [],
             ocrData: {},
             forms: {},
           });
 
           // Set language from session if available, otherwise keep current language
-          const sessionLanguage = result.data.session.languagePreference || currentLanguage;
+          const sessionLanguage = (result.data.session.languagePreference as 'en' | 'es') || currentLanguage;
           if (sessionLanguage !== currentLanguage) {
             changeLanguage(sessionLanguage);
           }
@@ -169,12 +200,18 @@ export const OnboardingFlow: React.FC = () => {
           const sessionStep = result.data.session.currentStep;
           if (sessionStep === 'documents' || sessionStep === 'document-upload') {
             setCurrentStep(1);
-          } else if (sessionStep === 'forms' || sessionStep === 'form-completion') {
+          } else if (sessionStep === 'emergency-contact') {
             setCurrentStep(2);
-          } else if (sessionStep === 'review' || sessionStep === 'signature') {
+          } else if (sessionStep === 'direct-deposit') {
             setCurrentStep(3);
-          } else if (sessionStep === 'complete' || sessionStep === 'completed') {
+          } else if (sessionStep === 'health-insurance') {
             setCurrentStep(4);
+          } else if (sessionStep === 'forms' || sessionStep === 'form-completion') {
+            setCurrentStep(5);
+          } else if (sessionStep === 'review' || sessionStep === 'signature') {
+            setCurrentStep(6);
+          } else if (sessionStep === 'complete' || sessionStep === 'completed') {
+            setCurrentStep(7);
           }
 
         } else {
@@ -301,11 +338,20 @@ export const OnboardingFlow: React.FC = () => {
           />
         );
       case 2:
+        return <EmergencyContactStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+      case 3:
+        return <DirectDepositStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+      case 4:
+        return <HealthInsuranceStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+      case 5:
         return (
           <FormCompletionStep
             sessionId={onboardingData.sessionId}
             language={currentLanguage}
-            employee={onboardingData.employee}
+            employee={{
+              ...onboardingData.employee,
+              id: onboardingData.employee.id || onboardingData.sessionId
+            }}
             ocrData={onboardingData.ocrData}
             onFormsCompleted={(forms: any) => {
               updateOnboardingData({ forms });
@@ -314,7 +360,7 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 3:
+      case 6:
         return (
           <ReviewStep
             sessionId={onboardingData.sessionId}
@@ -329,7 +375,7 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 4:
+      case 7:
         return (
           <CompletionStep
             language={currentLanguage}
@@ -442,4 +488,4 @@ export const OnboardingFlow: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};      

@@ -192,7 +192,7 @@ export const FormCompletionStep: React.FC<FormCompletionStepProps> = ({
         {/* W-4 Form Card */}
         <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between mb-4">
-            <Icon name="Calculator" size={32} className="text-green-600" />
+            <Icon name="FileText" size={32} className="text-green-600" />
             <div className={`px-3 py-1 rounded-full text-xs font-medium ${
               completedForms.w4Data
                 ? 'bg-green-100 text-green-800'
@@ -214,7 +214,7 @@ export const FormCompletionStep: React.FC<FormCompletionStepProps> = ({
             className="w-full"
             variant={completedForms.w4Data ? 'outline' : 'primary'}
           >
-            <Icon name="Calculator" size={16} className="mr-2" />
+            <Icon name="FileText" size={16} className="mr-2" />
             {completedForms.w4Data ? 'Review W-4' : currentT.startW4}
           </Button>
         </Card>
@@ -245,4 +245,4 @@ export const FormCompletionStep: React.FC<FormCompletionStepProps> = ({
       </div>
     </div>
   );
-}; 
+};  

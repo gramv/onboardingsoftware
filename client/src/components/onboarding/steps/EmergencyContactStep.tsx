@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
-import { Input } from '../../ui/Input';
 import { Icon } from '../../ui/Icon';
 import { useToast } from '../../../hooks/useToast';
 
-interface EmergencyContactData {
-  name: string;
-  relationship: string;
-  phone: string;
-}
-
 interface EmergencyContactStepProps {
-  onNext: (data: EmergencyContactData) => void;
+  onNext: (data: any) => void;
   onBack: () => void;
-  initialData?: EmergencyContactData;
+  initialData?: any;
   language: 'en' | 'es';
 }
 
@@ -25,64 +18,86 @@ export const EmergencyContactStep: React.FC<EmergencyContactStepProps> = ({
   language = 'en'
 }) => {
   const { showToast } = useToast();
-  const [formData, setFormData] = useState<EmergencyContactData>({
-    name: initialData?.name || '',
-    relationship: initialData?.relationship || '',
-    phone: initialData?.phone || ''
+  const [formData, setFormData] = useState({
+    primaryContactName: initialData?.primaryContactName || '',
+    primaryContactPhone: initialData?.primaryContactPhone || '',
+    primaryContactRelationship: initialData?.primaryContactRelationship || '',
+    secondaryContactName: initialData?.secondaryContactName || '',
+    secondaryContactPhone: initialData?.secondaryContactPhone || '',
+    secondaryContactRelationship: initialData?.secondaryContactRelationship || ''
   });
 
-  const [errors, setErrors] = useState<Partial<EmergencyContactData>>({});
-
-  const translations = {
+  const t = {
     en: {
       title: 'Emergency Contact Information',
-      subtitle: 'Please provide emergency contact details',
-      name: 'Full Name',
-      namePlaceholder: 'Enter emergency contact name',
+      subtitle: 'Provide emergency contact details for workplace safety',
+      primaryContact: 'Primary Emergency Contact',
+      secondaryContact: 'Secondary Emergency Contact (Optional)',
+      contactName: 'Full Name',
+      contactPhone: 'Phone Number',
       relationship: 'Relationship',
-      relationshipPlaceholder: 'e.g., Spouse, Parent, Sibling',
-      phone: 'Phone Number',
-      phonePlaceholder: 'Enter phone number',
-      required: 'This field is required',
-      invalidPhone: 'Please enter a valid phone number',
+      relationshipOptions: {
+        spouse: 'Spouse',
+        parent: 'Parent',
+        sibling: 'Sibling',
+        child: 'Child',
+        friend: 'Friend',
+        other: 'Other'
+      },
+      required: 'Required',
+      optional: 'Optional',
+      continue: 'Continue to Direct Deposit',
       back: 'Back',
-      continue: 'Continue',
-      success: 'Emergency contact information saved successfully'
+      success: 'Emergency contact information saved successfully',
+      validation: {
+        nameRequired: 'Contact name is required',
+        phoneRequired: 'Phone number is required',
+        relationshipRequired: 'Relationship is required'
+      }
     },
     es: {
       title: 'Información de Contacto de Emergencia',
-      subtitle: 'Por favor proporcione los detalles del contacto de emergencia',
-      name: 'Nombre Completo',
-      namePlaceholder: 'Ingrese el nombre del contacto de emergencia',
+      subtitle: 'Proporcione detalles de contacto de emergencia para la seguridad en el lugar de trabajo',
+      primaryContact: 'Contacto de Emergencia Primario',
+      secondaryContact: 'Contacto de Emergencia Secundario (Opcional)',
+      contactName: 'Nombre Completo',
+      contactPhone: 'Número de Teléfono',
       relationship: 'Relación',
-      relationshipPlaceholder: 'ej., Cónyuge, Padre, Hermano',
-      phone: 'Número de Teléfono',
-      phonePlaceholder: 'Ingrese el número de teléfono',
-      required: 'Este campo es obligatorio',
-      invalidPhone: 'Por favor ingrese un número de teléfono válido',
+      relationshipOptions: {
+        spouse: 'Cónyuge',
+        parent: 'Padre/Madre',
+        sibling: 'Hermano/Hermana',
+        child: 'Hijo/Hija',
+        friend: 'Amigo/Amiga',
+        other: 'Otro'
+      },
+      required: 'Requerido',
+      optional: 'Opcional',
+      continue: 'Continuar a Depósito Directo',
       back: 'Atrás',
-      continue: 'Continuar',
-      success: 'Información de contacto de emergencia guardada exitosamente'
+      success: 'Información de contacto de emergencia guardada exitosamente',
+      validation: {
+        nameRequired: 'El nombre del contacto es requerido',
+        phoneRequired: 'El número de teléfono es requerido',
+        relationshipRequired: 'La relación es requerida'
+      }
     }
   };
 
-  const t = translations[language];
+  const currentT = t[language];
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<EmergencyContactData> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = t.required;
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.primaryContactName.trim()) {
+      newErrors.primaryContactName = currentT.validation.nameRequired;
     }
-
-    if (!formData.relationship.trim()) {
-      newErrors.relationship = t.required;
+    if (!formData.primaryContactPhone.trim()) {
+      newErrors.primaryContactPhone = currentT.validation.phoneRequired;
     }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = t.required;
-    } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone.replace(/[\s\-\(\)]/g, ''))) {
-      newErrors.phone = t.invalidPhone;
+    if (!formData.primaryContactRelationship) {
+      newErrors.primaryContactRelationship = currentT.validation.relationshipRequired;
     }
 
     setErrors(newErrors);
@@ -91,99 +106,153 @@ export const EmergencyContactStep: React.FC<EmergencyContactStepProps> = ({
 
   const handleSubmit = () => {
     if (validateForm()) {
-      showToast(t.success, 'success');
+      showToast(currentT.success, 'success');
       onNext(formData);
     }
   };
 
-  const handleInputChange = (field: keyof EmergencyContactData, value: string) => {
+  const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto">
       <div className="text-center mb-8">
-        <div className="flex items-center justify-center mb-4">
-          <Icon name="Heart" size={48} className="text-red-500" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.title}</h2>
-        <p className="text-gray-600">{t.subtitle}</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{currentT.title}</h1>
+        <p className="text-lg text-gray-600">{currentT.subtitle}</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Icon name="Heart" size={20} className="mr-2 text-red-500" />
-            {t.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t.name} *
-            </label>
-            <Input
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder={t.namePlaceholder}
-              className={errors.name ? 'border-red-500' : ''}
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-            )}
+      <div className="space-y-8">
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <Icon name="UserPlus" size={24} className="text-red-600 mr-3" />
+            <h3 className="text-xl font-semibold text-gray-900">{currentT.primaryContact}</h3>
+            <span className="ml-2 text-sm text-red-600">({currentT.required})</span>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t.relationship} *
-            </label>
-            <Input
-              value={formData.relationship}
-              onChange={(e) => handleInputChange('relationship', e.target.value)}
-              placeholder={t.relationshipPlaceholder}
-              className={errors.relationship ? 'border-red-500' : ''}
-            />
-            {errors.relationship && (
-              <p className="mt-1 text-sm text-red-600">{errors.relationship}</p>
-            )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.contactName} *
+              </label>
+              <input
+                type="text"
+                value={formData.primaryContactName}
+                onChange={(e) => updateField('primaryContactName', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.primaryContactName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder={currentT.contactName}
+              />
+              {errors.primaryContactName && (
+                <p className="text-red-500 text-sm mt-1">{errors.primaryContactName}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.contactPhone} *
+              </label>
+              <input
+                type="tel"
+                value={formData.primaryContactPhone}
+                onChange={(e) => updateField('primaryContactPhone', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.primaryContactPhone ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="(555) 123-4567"
+              />
+              {errors.primaryContactPhone && (
+                <p className="text-red-500 text-sm mt-1">{errors.primaryContactPhone}</p>
+              )}
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.relationship} *
+              </label>
+              <select
+                value={formData.primaryContactRelationship}
+                onChange={(e) => updateField('primaryContactRelationship', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.primaryContactRelationship ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">{currentT.relationship}</option>
+                {Object.entries(currentT.relationshipOptions).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+              {errors.primaryContactRelationship && (
+                <p className="text-red-500 text-sm mt-1">{errors.primaryContactRelationship}</p>
+              )}
+            </div>
           </div>
+        </Card>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t.phone} *
-            </label>
-            <Input
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              placeholder={t.phonePlaceholder}
-              type="tel"
-              className={errors.phone ? 'border-red-500' : ''}
-            />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-            )}
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <Icon name="Users" size={24} className="text-blue-600 mr-3" />
+            <h3 className="text-xl font-semibold text-gray-900">{currentT.secondaryContact}</h3>
+            <span className="ml-2 text-sm text-gray-500">({currentT.optional})</span>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.contactName}
+              </label>
+              <input
+                type="text"
+                value={formData.secondaryContactName}
+                onChange={(e) => updateField('secondaryContactName', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={currentT.contactName}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.contactPhone}
+              </label>
+              <input
+                type="tel"
+                value={formData.secondaryContactPhone}
+                onChange={(e) => updateField('secondaryContactPhone', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {currentT.relationship}
+              </label>
+              <select
+                value={formData.secondaryContactRelationship}
+                onChange={(e) => updateField('secondaryContactRelationship', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">{currentT.relationship}</option>
+                {Object.entries(currentT.relationshipOptions).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Card>
+      </div>
 
-      <div className="flex justify-between pt-6">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="flex items-center"
-        >
+      <div className="flex justify-between mt-8">
+        <Button variant="outline" onClick={onBack}>
           <Icon name="ChevronLeft" size={16} className="mr-2" />
-          {t.back}
+          {currentT.back}
         </Button>
-        
-        <Button
-          onClick={handleSubmit}
-          className="flex items-center"
-        >
-          {t.continue}
+        <Button onClick={handleSubmit}>
+          {currentT.continue}
           <Icon name="ChevronRight" size={16} className="ml-2" />
         </Button>
       </div>

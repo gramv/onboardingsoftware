@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { Badge } from '../ui/Badge';
 import { useToast } from '../../hooks/useToast';
 import { useLanguage } from '../../hooks/useLanguage';
 import { onboardingService } from '../../services/onboardingService';
@@ -41,6 +40,9 @@ interface OnboardingData {
     signatureBase64: string;
     signedAt: string;
   };
+  emergencyContact?: any;
+  directDeposit?: any;
+  healthInsurance?: any;
 }
 
 interface Step {
@@ -186,6 +188,9 @@ export const OnboardingFlow: React.FC = () => {
             documents: [],
             ocrData: {},
             forms: {},
+            emergencyContact: {},
+            directDeposit: {},
+            healthInsurance: {},
           });
 
           // Set language from session if available, otherwise keep current language
@@ -275,12 +280,7 @@ export const OnboardingFlow: React.FC = () => {
     return ONBOARDING_STEPS.reduce((total, step) => total + step.estimatedMinutes, 0);
   };
 
-  const getCompletedTime = () => {
-    return ONBOARDING_STEPS.slice(0, currentStep).reduce((total, step) => total + step.estimatedMinutes, 0);
-  };
-
   // Translation functions using proper i18n integration
-  const tStep = (key: string) => t(`onboarding.steps.${key}`);
   const tLabel = (key: string) => t(`onboarding.labels.${key}`);
   const tCommon = (key: string) => t(`common.${key}`);
 
@@ -338,11 +338,41 @@ export const OnboardingFlow: React.FC = () => {
           />
         );
       case 2:
-        return <EmergencyContactStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+        return (
+          <EmergencyContactStep 
+            language={currentLanguage} 
+            onNext={(data) => { 
+              updateOnboardingData({ emergencyContact: data }); 
+              nextStep(); 
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.emergencyContact}
+          />
+        );
       case 3:
-        return <DirectDepositStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+        return (
+          <DirectDepositStep 
+            language={currentLanguage} 
+            onNext={(data) => { 
+              updateOnboardingData({ directDeposit: data }); 
+              nextStep(); 
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.directDeposit}
+          />
+        );
       case 4:
-        return <HealthInsuranceStep language={currentLanguage} onNext={nextStep} onBack={previousStep} />;
+        return (
+          <HealthInsuranceStep 
+            language={currentLanguage} 
+            onNext={(data) => { 
+              updateOnboardingData({ healthInsurance: data }); 
+              nextStep(); 
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.healthInsurance}
+          />
+        );
       case 5:
         return (
           <FormCompletionStep
@@ -488,4 +518,4 @@ export const OnboardingFlow: React.FC = () => {
       </div>
     </div>
   );
-};      
+};          

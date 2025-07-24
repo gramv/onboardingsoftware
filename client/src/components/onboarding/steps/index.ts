@@ -1,8 +1,10 @@
 export { WelcomeStep } from './WelcomeStep';
+export { EmployeeInformationStep } from './EmployeeInformationStep';
 export { DocumentUploadStep } from './DocumentUploadStep';
 export { EmergencyContactStep } from './EmergencyContactStep';
 export { DirectDepositStep } from './DirectDepositStep';
 export { HealthInsuranceStep } from './HealthInsuranceStep';
+export { PolicyAcknowledgmentStep } from './PolicyAcknowledgmentStep';
 export { FormCompletionStep } from './FormCompletionStep';
 export { ReviewStep } from './ReviewStep';
-export { CompletionStep } from './CompletionStep';   
+export { CompletionStep } from './CompletionStep';                  

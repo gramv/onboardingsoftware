@@ -8,10 +8,12 @@ import { useLanguage } from '../../hooks/useLanguage';
 import { onboardingService } from '../../services/onboardingService';
 import {
   WelcomeStep,
+  EmployeeInformationStep,
   DocumentUploadStep,
   EmergencyContactStep,
   DirectDepositStep,
   HealthInsuranceStep,
+  PolicyAcknowledgmentStep,
   FormCompletionStep,
   ReviewStep,
   CompletionStep
@@ -40,9 +42,11 @@ interface OnboardingData {
     signatureBase64: string;
     signedAt: string;
   };
+  employeeInformation?: any;
   emergencyContact?: any;
   directDeposit?: any;
   healthInsurance?: any;
+  policyAcknowledgment?: any;
 }
 
 interface Step {
@@ -64,6 +68,15 @@ const ONBOARDING_STEPS: Step[] = [
     descriptionEs: 'Comience con su incorporación',
     icon: 'UserPlus',
     estimatedMinutes: 1
+  },
+  {
+    id: 'employee-information',
+    title: 'Employee Information',
+    titleEs: 'Información del Empleado',
+    description: 'Provide your personal and employment details',
+    descriptionEs: 'Proporciona tus datos personales y de empleo',
+    icon: 'User',
+    estimatedMinutes: 8
   },
   {
     id: 'documents',
@@ -100,6 +113,15 @@ const ONBOARDING_STEPS: Step[] = [
     descriptionEs: 'Seleccione el plan de seguro de salud',
     icon: 'Shield',
     estimatedMinutes: 8
+  },
+  {
+    id: 'policy-acknowledgment',
+    title: 'Company Policies',
+    titleEs: 'Políticas de la Empresa',
+    description: 'Review and acknowledge company policies',
+    descriptionEs: 'Revise y reconozca las políticas de la empresa',
+    icon: 'Book',
+    estimatedMinutes: 10
   },
   {
     id: 'forms',
@@ -327,6 +349,18 @@ export const OnboardingFlow: React.FC = () => {
         );
       case 1:
         return (
+          <EmployeeInformationStep 
+            language={currentLanguage} 
+            onNext={(data) => { 
+              updateOnboardingData({ employeeInformation: data }); 
+              nextStep(); 
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.employeeInformation}
+          />
+        );
+      case 2:
+        return (
           <DocumentUploadStep
             sessionId={onboardingData.sessionId}
             language={currentLanguage}
@@ -337,9 +371,9 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 2:
+      case 3:
         return (
-          <EmergencyContactStep 
+          <EmergencyContactStep
             language={currentLanguage} 
             onNext={(data) => { 
               updateOnboardingData({ emergencyContact: data }); 
@@ -349,9 +383,9 @@ export const OnboardingFlow: React.FC = () => {
             initialData={onboardingData.emergencyContact}
           />
         );
-      case 3:
+      case 4:
         return (
-          <DirectDepositStep 
+          <DirectDepositStep
             language={currentLanguage} 
             onNext={(data) => { 
               updateOnboardingData({ directDeposit: data }); 
@@ -361,9 +395,9 @@ export const OnboardingFlow: React.FC = () => {
             initialData={onboardingData.directDeposit}
           />
         );
-      case 4:
+      case 5:
         return (
-          <HealthInsuranceStep 
+          <HealthInsuranceStep
             language={currentLanguage} 
             onNext={(data) => { 
               updateOnboardingData({ healthInsurance: data }); 
@@ -373,7 +407,19 @@ export const OnboardingFlow: React.FC = () => {
             initialData={onboardingData.healthInsurance}
           />
         );
-      case 5:
+      case 6:
+        return (
+          <PolicyAcknowledgmentStep
+            language={currentLanguage} 
+            onNext={(data) => { 
+              updateOnboardingData({ policyAcknowledgment: data }); 
+              nextStep(); 
+            }}
+            onBack={previousStep}
+            initialData={onboardingData.policyAcknowledgment}
+          />
+        );
+      case 7:
         return (
           <FormCompletionStep
             sessionId={onboardingData.sessionId}
@@ -390,7 +436,7 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 6:
+      case 8:
         return (
           <ReviewStep
             sessionId={onboardingData.sessionId}
@@ -405,7 +451,7 @@ export const OnboardingFlow: React.FC = () => {
             onBack={previousStep}
           />
         );
-      case 7:
+      case 9:
         return (
           <CompletionStep
             language={currentLanguage}
@@ -518,4 +564,4 @@ export const OnboardingFlow: React.FC = () => {
       </div>
     </div>
   );
-};          
+};                                                                                                                        

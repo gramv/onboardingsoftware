@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Icon } from '../components/ui/Icon';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import { jobService } from '../services/jobService';
 
 interface JobPosting {
   id: string;
@@ -36,11 +37,20 @@ interface JobApplication {
   experience?: string;
   education?: string;
   additionalInfo?: string;
+  department: string;
+  position: string;
+  workEligibility: string;
+  sponsorshipRequired: string;
+  startDate: string;
+  shiftPreference: string;
+  employmentType: string;
+  yearsExperience: string;
+  hotelExperience: string;
 }
 
 export const PublicJobPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const organizationId = searchParams.get('org'); // Get organization ID from URL
+  const propertyId = searchParams.get('property');
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +58,15 @@ export const PublicJobPortal: React.FC = () => {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [organizationName, setOrganizationName] = useState('');
+  const [departments, setDepartments] = useState<string[]>([
+    'Housekeeping',
+    'Front Desk', 
+    'Maintenance',
+    'Food Service',
+    'Management'
+  ]);
+  const [positions, setPositions] = useState<string[]>([]);
+  const [propertyInfo, setPropertyInfo] = useState<any>(null);
   
   // Application form state
   const [applicationData, setApplicationData] = useState<JobApplication>({
@@ -66,6 +84,15 @@ export const PublicJobPortal: React.FC = () => {
     experience: '',
     education: '',
     additionalInfo: '',
+    department: '',
+    position: '',
+    workEligibility: '',
+    sponsorshipRequired: '',
+    startDate: '',
+    shiftPreference: '',
+    employmentType: '',
+    yearsExperience: '',
+    hotelExperience: ''
   });
   
   const [applicationLoading, setApplicationLoading] = useState(false);
@@ -74,37 +101,53 @@ export const PublicJobPortal: React.FC = () => {
   // Fetch jobs
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [propertyId]);
 
   // Filter jobs when search or department changes
   useEffect(() => {
     filterJobs();
   }, [jobs, searchTerm, selectedDepartment]);
 
+  useEffect(() => {
+    if (selectedDepartment && selectedDepartment !== 'all') {
+      loadPositions();
+    }
+  }, [selectedDepartment, propertyId]);
+
   const fetchJobs = async () => {
     try {
-      // Build URL with organization filter if provided
-      const url = organizationId 
-        ? `/api/jobs?organizationId=${organizationId}`
-        : '/api/jobs';
+      let response;
       
-      const response = await fetch(`${url}`);
-      if (response.ok) {
-        const result = await response.json();
-        const jobsData = result.data || [];
-        setJobs(jobsData);
-        
-        // Set organization name from first job if available
-        if (jobsData.length > 0 && organizationId) {
-          setOrganizationName(jobsData[0].organizationName);
-        }
+      if (propertyId) {
+        response = await jobService.getPropertyJobPostings(propertyId);
+        const propertyResponse = await jobService.getPropertyInfo(propertyId);
+        setPropertyInfo(propertyResponse.data);
       } else {
-        console.error('Failed to fetch jobs');
+        response = await jobService.getPublicJobPostings();
+      }
+      
+      setJobs(response.data || []);
+      setFilteredJobs(response.data || []);
+      
+      const uniqueDepartments = [...new Set((response.data || []).map((job: any) => job.department).filter(Boolean))];
+      if (uniqueDepartments.length > 0) {
+        setDepartments(uniqueDepartments as string[]);
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPositions = async () => {
+    if (!propertyId || !selectedDepartment || selectedDepartment === 'all') return;
+    
+    try {
+      const response = await jobService.getPositionsByDepartment(propertyId, selectedDepartment);
+      setPositions(response.data || []);
+    } catch (error) {
+      console.error('Error loading positions:', error);
     }
   };
 
@@ -155,42 +198,46 @@ export const PublicJobPortal: React.FC = () => {
   };
 
   const submitApplication = async () => {
-    if (!selectedJob) return;
+    if (!selectedJob && !propertyId) return;
 
     setApplicationLoading(true);
     try {
-      const response = await fetch(`/api/jobs/${selectedJob.id}/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const submitData = {
+        ...applicationData,
+        jobPostingId: selectedJob?.id,
+        propertyId: propertyId
+      };
+      
+      await jobService.submitJobApplication(submitData);
+      
+      setApplicationSubmitted(true);
+      setShowApplicationForm(false);
+      // Reset form
+      setApplicationData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          zipCode: '',
         },
-        body: JSON.stringify(applicationData),
+        resumeText: '',
+        experience: '',
+        education: '',
+        additionalInfo: '',
+        department: '',
+        position: '',
+        workEligibility: '',
+        sponsorshipRequired: '',
+        startDate: '',
+        shiftPreference: '',
+        employmentType: '',
+        yearsExperience: '',
+        hotelExperience: ''
       });
-
-      if (response.ok) {
-        setApplicationSubmitted(true);
-        setShowApplicationForm(false);
-        // Reset form
-        setApplicationData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          address: {
-            street: '',
-            city: '',
-            state: '',
-            zipCode: '',
-          },
-          resumeText: '',
-          experience: '',
-          education: '',
-          additionalInfo: '',
-        });
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to submit application');
-      }
     } catch (error) {
       console.error('Error submitting application:', error);
       alert('Failed to submit application');
@@ -199,8 +246,6 @@ export const PublicJobPortal: React.FC = () => {
     }
   };
 
-  // Get unique departments for filter
-  const departments = [...new Set(jobs.map(job => job.department))];
 
   if (loading) {
     return (
@@ -220,19 +265,19 @@ export const PublicJobPortal: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {organizationName ? `Join ${organizationName}` : 'Join Our Team'}
+              {propertyInfo ? `Join ${propertyInfo.name}` : 'Join Our Team'}
             </h1>
             <p className="text-lg text-gray-600">
-              {organizationName 
-                ? `Explore available positions at ${organizationName}`
+              {propertyInfo 
+                ? `Explore available positions at ${propertyInfo.name}`
                 : 'Discover exciting career opportunities in hospitality'
               }
             </p>
-            {organizationName && (
+            {propertyInfo && (
               <div className="mt-4">
                 <Badge variant="outline" className="text-lg px-4 py-2">
                   <Icon name="MapPin" size={16} className="mr-2" />
-                  {organizationName}
+                  {propertyInfo.name}
                 </Badge>
               </div>
             )}
@@ -553,4 +598,4 @@ export const PublicJobPortal: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};    

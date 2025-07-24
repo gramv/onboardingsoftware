@@ -603,3 +603,4 @@ describe('Document Routes', () => {
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
   });
+});

@@ -1,6 +1,24 @@
 import Groq from 'groq-sdk';
 import { config } from '../../config/environment';
 
+export interface OCRResult {
+  firstName?: string;
+  lastName?: string;
+  middleInitial?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  dateOfBirth?: string;
+  ssnNumber?: string;
+  licenseNumber?: string;
+  documentNumber?: string;
+  expirationDate?: string;
+  issuingAuthority?: string;
+  confidence: number;
+  extractedText: string;
+}
+
 export type EnhancementType = 'job-description' | 'requirements' | 'benefits';
 
 export interface EnhancementRequest {
@@ -597,10 +615,122 @@ Return ONLY the rewritten content as bullet points without any prefixes, labels,
     return { ...this.retryConfig };
   }
 
+  async processDocumentOCR(imageBase64: string, documentType: 'drivers_license' | 'ssn' | 'passport' | 'work_authorization'): Promise<OCRResult> {
+    try {
+      const prompt = this.getOCRPrompt(documentType);
+      
+      const response = await this.client.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { 
+                type: "text", 
+                text: prompt 
+              },
+              { 
+                type: "image_url", 
+                image_url: { 
+                  url: `data:image/jpeg;base64,${imageBase64}` 
+                } 
+              }
+            ]
+          }
+        ],
+        model: "llama-3.2-11b-vision-preview",
+        max_tokens: 1000,
+        temperature: 0.1
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      
+      try {
+        const parsed = JSON.parse(content);
+        return {
+          ...parsed,
+          confidence: 0.9,
+          extractedText: content
+        };
+      } catch (parseError) {
+        return {
+          confidence: 0.1,
+          extractedText: content
+        };
+      }
+    } catch (error) {
+      console.error('Error processing document OCR with Groq:', error);
+      return {
+        confidence: 0,
+        extractedText: ''
+      };
+    }
+  }
+
+  private getOCRPrompt(documentType: string): string {
+    const basePrompt = "Extract structured data from this document image. Return ONLY a valid JSON object with the following fields:";
+    
+    switch (documentType) {
+      case 'drivers_license':
+        return `${basePrompt}
+        {
+          "firstName": "string",
+          "lastName": "string", 
+          "middleInitial": "string",
+          "address": "string",
+          "city": "string",
+          "state": "string",
+          "zipCode": "string",
+          "dateOfBirth": "YYYY-MM-DD",
+          "licenseNumber": "string",
+          "expirationDate": "YYYY-MM-DD",
+          "issuingAuthority": "string"
+        }`;
+        
+      case 'ssn':
+        return `${basePrompt}
+        {
+          "firstName": "string",
+          "lastName": "string",
+          "middleInitial": "string", 
+          "ssnNumber": "string"
+        }`;
+        
+      case 'passport':
+        return `${basePrompt}
+        {
+          "firstName": "string",
+          "lastName": "string",
+          "middleInitial": "string",
+          "dateOfBirth": "YYYY-MM-DD",
+          "documentNumber": "string",
+          "expirationDate": "YYYY-MM-DD",
+          "issuingAuthority": "string"
+        }`;
+        
+      case 'work_authorization':
+        return `${basePrompt}
+        {
+          "firstName": "string",
+          "lastName": "string",
+          "documentNumber": "string",
+          "expirationDate": "YYYY-MM-DD",
+          "issuingAuthority": "string"
+        }`;
+        
+      default:
+        return `${basePrompt}
+        {
+          "firstName": "string",
+          "lastName": "string",
+          "documentNumber": "string"
+        }`;
+    }
+  }
+
   /**
    * Force reset service status (for testing or manual recovery)
    */
-  resetServiceStatus(): void {
+  forceResetServiceStatus(): void {
     this.serviceStatus = {
       isAvailable: true,
       consecutiveFailures: 0,
